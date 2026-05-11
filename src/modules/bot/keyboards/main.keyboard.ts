@@ -19,17 +19,15 @@ export const getMainKeyboard = (isAdmin: boolean = false) => {
   };
 };
 
-// src/modules/bot/keyboards/main.keyboard.ts
-
 export const getPlanKeyboard = (plans: any[]) => {
   const planButtons = plans.map(plan => {
     let displayText = '';
     
     if (plan.has_discount && plan.discounted_price) {
-      // نمایش با خط خوردگی روی قیمت اصلی و فلش به قیمت تخفیف‌دار
-      displayText = `${plan.name} - ~~${plan.price.toLocaleString()}~~ → ${plan.discounted_price.toLocaleString()} تومان`;
+      const percent = Math.round(((plan.price - plan.discounted_price) / plan.price) * 100);
+      displayText = `📦 ${plan.name} | 💰${plan.price.toLocaleString()} تومان → 💎${plan.discounted_price.toLocaleString()} تومان (🔥-${percent}%)`;
     } else {
-      displayText = `${plan.name} - ${plan.price.toLocaleString()} تومان`;
+      displayText = `📦 ${plan.name} | 💰${plan.price.toLocaleString()} تومان`;
     }
     
     return [{ text: displayText, callback_data: `plan_${plan.id}` }];

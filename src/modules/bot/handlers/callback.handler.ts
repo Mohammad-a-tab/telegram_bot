@@ -38,6 +38,8 @@ export class CallbackHandler {
       'admin_toggle_plan_': () => planHandler.togglePlanStatus(chatId, userId, data).catch(console.error),
       'admin_delete_plan_': () => planHandler.deletePlan(chatId, userId, data).catch(console.error),
       'admin_select_plan_for_edit_': () => planHandler.startEditPlanById(chatId, userId, data).catch(console.error),
+      'admin_edit_plan_': () => planHandler.startEditPlanById(chatId, userId, data),
+      'admin_disable_all_discounts': () => discountHandler.disableAllDiscounts(chatId, userId),
       'admin_list_configs': () => configHandler.list(chatId, userId),
       'admin_show_configs_': () => configHandler.showPlanConfigs(chatId, userId, parseInt(data.split('_')[3])),
       'admin_add_config_to_plan_': () => configHandler.startAdd(chatId, userId, data),

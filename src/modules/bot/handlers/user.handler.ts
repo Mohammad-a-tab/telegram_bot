@@ -30,8 +30,31 @@ export class UserHandler {
       return;
     }
   
-    const keyboard = getPlanKeyboard(plans);
-    await this.botService.sendMessage(chatId, '🎯 لطفاً یکی از پلن‌های زیر را انتخاب کنید:', keyboard);
+    const headerMessage = 
+      `🛒 **خرید VPN**\n\n` +
+      `🎉 **جشنواره ۳ روزه تخفیف‌های ویژه** 🎉\n` +
+      `به مناسبت جشنواره، تمام پلن‌ها با تخفیف ویژه عرضه می‌شوند.\n` +
+      `فرصت رو از دست ندهید! 🚀\n\n` +
+      `👇 لطفاً یکی از پلن‌های زیر را انتخاب کنید:`;
+  
+    await this.botService.sendMessage(chatId, headerMessage, { parse_mode: 'Markdown' });
+  
+    const planButtons = plans.map(plan => {
+      let buttonText = '';
+      if (plan.has_discount && plan.discounted_price) {
+        const percent = Math.round(((plan.price - plan.discounted_price) / plan.price) * 100);
+        buttonText = `📦 ${plan.name} | 💰${plan.price} تومان → 💎${plan.discounted_price} تومان (🔥-${percent}%)`;
+      } else {
+        buttonText = `📦 ${plan.name} | 💰${plan.price} تومان`;
+      }
+      return [{ text: buttonText, callback_data: `plan_${plan.id}` }];
+    });
+  
+    await this.botService.sendMessage(chatId, ' ', {
+      reply_markup: {
+        inline_keyboard: planButtons,
+      },
+    });
   }
 
   async selectPlan(chatId: number, userId: number, data: string) {
@@ -57,12 +80,22 @@ export class UserHandler {
     }
     
     this.botService.setAdminState(userId, { action: 'waiting_for_receipt', planId });
-    
-    const displayPrice = plan.has_discount && plan.discounted_price ? plan.discounted_price : plan.price;
+    const finalPrice = plan.has_discount && plan.discounted_price ? plan.discounted_price : plan.price;
     const cardNumber = process.env.CARD_NUMBER || '**********';
     const cardHolder = process.env.CARD_HOLDER || '**********';
-    
-    const message = `📋 **مشخصات پلن انتخاب شده**\n\n📌 نام: ${plan.name}\n💰 قیمت: ${displayPrice.toLocaleString()} تومان${plan.has_discount ? ` (قیمت اصلی: ${plan.price.toLocaleString()})` : ''}\n⏱ مدت: ${plan.duration_days} روز\n📊 حجم: ${plan.bandwidth_gb === 0 ? '♾️ نامحدود' : plan.bandwidth_gb + ' گیگابایت'}\n\n✅ پس از واریز، تصویر رسید را ارسال کنید.`;
+    const formatPrice = (price: number) => price.toLocaleString('fa-IR');
+  
+    const message = 
+    `💳 **اطلاعات پرداخت**\n\n` +
+    `📦 پلن: ${plan.name}\n`+
+    `💰 قیمت اصلی: ${formatPrice(plan.price)} تومان\n` +
+    `✅ مبلغ نهایی: ${formatPrice(finalPrice)} تومان\n\n`+
+    `💳 **شماره کارت:**\n` +
+    `<code>${cardNumber}</code>\n\n` +
+    `👤 **صاحب کارت:**\n${cardHolder}\n\n` +
+    `💰 **مبلغ قابل پرداخت:**\n` +
+    `<code>${formatPrice(finalPrice)} تومان</code>\n\n` +
+    `🖼 **پس از پرداخت، تصویر رسید را ارسال کنید.**`;
     
     await this.botService.sendMessage(chatId, message, {
       parse_mode: 'Markdown',

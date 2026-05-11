@@ -53,6 +53,18 @@ export class DiscountHandler {
     });
   }
 
+  async disableAllDiscounts(chatId: number, userId: number) {
+    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
+    
+    await this.botService.planRepo.update(
+      { has_discount: true },
+      { has_discount: false, discounted_price: null }
+    );
+    await this.botService.cache.invalidatePlans();
+    
+    await this.botService.sendMessage(chatId, '✅ تخفیف همه پلن‌ها غیرفعال شد.');
+  }
+
   async enable(chatId: number, userId: number, planId: number) {
     if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
     

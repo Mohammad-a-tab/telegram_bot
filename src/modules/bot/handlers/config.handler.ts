@@ -108,4 +108,35 @@ export class ConfigHandler {
       ...configsManagementKeyboard
     });
   }
+
+  async deleteConfig(chatId: number, userId: number, configId: number) {
+    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
+    
+    const config = await this.botService.configRepo.findOne({ 
+      where: { id: configId },
+      relations: ['plan']
+    });
+    
+    if (!config) {
+      await this.botService.sendMessage(chatId, '❌ کانفیگ یافت نشد.');
+      return;
+    }
+    
+    const plan = config.plan;
+    const wasSold = config.is_sold_out;
+    await this.botService.configRepo.delete(config.id);
+    
+    if (plan && !wasSold) {
+      plan.stock = Math.max(0, (plan.stock || 0) - 1);
+      await this.botService.planRepo.save(plan);
+      console.log(`📊 Plan ${plan.id} stock decreased to: ${plan.stock} (config deleted)`);
+    }
+
+    await this.botService.cache.invalidatePlans();
+    await this.botService.cache.del(`available_config_${plan.id}`);
+    await this.botService.cache.del(`can_purchase_${plan.id}`);
+    await this.botService.cache.del(`remaining_stock_${plan.id}`);
+    
+    await this.botService.sendMessage(chatId, '✅ کانفیگ با موفقیت حذف شد.');
+  }
 }

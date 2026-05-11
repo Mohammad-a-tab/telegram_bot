@@ -132,13 +132,17 @@ export class OrderHandler {
     const configLink = config.config_link;
     
     let message = `🎉 **تبریک!** 🎉\n\n✅ سفارش شما با موفقیت تایید شد!\n\n`;
-    message += `🔗 **کانفیگ شما:**\n\`${configLink}\`\n\n`;
-    if (subLink) {
-      message += `🔗 **لینک اشتراک:**\n\`${subLink}${configLink}\`\n\n`;
-    }
     message += `📌 برای کپی کردن، روی لینک کلیک کنید.`;
     
-    await this.botService.sendMessage(order.user_id, message, { parse_mode: 'Markdown' });
+    await this.botService.sendMessage(order.user_id, message, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🔧 نحوه اتصال', callback_data: 'how_to_connect' }],
+          [{ text: '🏠 بازگشت به صفحه اصلی', callback_data: 'main_menu' }]
+        ]
+      }
+    });
     await this.botService.sendMessage(adminChatId, `✅ سفارش #${order.id} تایید شد.`);
   }
 

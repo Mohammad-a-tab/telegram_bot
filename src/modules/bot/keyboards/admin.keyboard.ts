@@ -3,11 +3,12 @@
 export const adminMainKeyboard = {
   reply_markup: {
     inline_keyboard: [
-      [{ text: '📦 مدیریت پلن‌ها', callback_data: 'admin_plans_menu' }],
-      [{ text: '🔗 مدیریت ساب لینک', callback_data: 'admin_subs_menu' }],
-      [{ text: '⚙️ مدیریت کانفیگ‌ها', callback_data: 'admin_configs_menu' }],
-      [{ text: '📋 مدیریت سفارشات', callback_data: 'admin_orders_menu' }],
-      [{ text: '🔙 بازگشت', callback_data: 'admin_back' }]
+      [{ text: '📦 پلن‌ها', callback_data: 'admin_plans_menu' }],
+      [{ text: '🔗 ساب لینک', callback_data: 'admin_subs_menu' }],
+      [{ text: '⚙️ کانفیگ‌ها', callback_data: 'admin_configs_menu' }],
+      [{ text: '📋 سفارشات', callback_data: 'admin_orders_menu' }],
+      [{ text: '🏷️ تخفیف', callback_data: 'admin_discount_menu' }],
+      [{ text: '🔙 خروج', callback_data: 'admin_back' }]
     ]
   }
 };
@@ -31,6 +32,7 @@ export const discountManagementKeyboard = {
     inline_keyboard: [
       [{ text: '🎁 فعال‌سازی تخفیف روی پلن', callback_data: 'admin_enable_discount' }],
       [{ text: '🚫 غیرفعال‌سازی تخفیف روی پلن', callback_data: 'admin_disable_discount' }],
+      [{ text: '🚫 غیرفعال‌سازی همه تخفیف‌ها', callback_data: 'admin_disable_all_discounts' }],
       [{ text: '🔙 بازگشت', callback_data: 'admin_plans_menu' }]
     ]
   }
