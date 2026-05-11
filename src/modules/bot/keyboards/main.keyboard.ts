@@ -24,8 +24,7 @@ export const getPlanKeyboard = (plans: any[]) => {
     let displayText = '';
     
     if (plan.has_discount && plan.discounted_price) {
-      const percent = Math.round(((plan.price - plan.discounted_price) / plan.price) * 100);
-      displayText = `📦 ${plan.name} | 💰${plan.price.toLocaleString()} تومان → 💎${plan.discounted_price.toLocaleString()} تومان (🔥-${percent}%)`;
+      displayText = `📦 ${plan.name} | 💰${plan.price.toLocaleString()} → 💎${plan.discounted_price.toLocaleString()} تومان 🔥`;
     } else {
       displayText = `📦 ${plan.name} | 💰${plan.price.toLocaleString()} تومان`;
     }
@@ -39,6 +38,7 @@ export const getPlanKeyboard = (plans: any[]) => {
     },
   };
 };
+
 export const paymentKeyboard = (planId: number) => ({
   reply_markup: {
     inline_keyboard: [

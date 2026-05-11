@@ -162,25 +162,41 @@ export class BotService {
 
   async sendMessage(chatId: number, text: string, options?: any) {
     try {
-      if (options?.parse_mode === 'Markdown') {
-        const escapeChars = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
-        let safeText = text;
-        for (const char of escapeChars) {
-          safeText = safeText.replace(new RegExp(`\\${char}`, 'g'), `\\${char}`);
-        }
-        options = { ...options, text: safeText };
-        return await this.bot.sendMessage(chatId, safeText, options);
+      if (!text || text.trim() === '') {
+        console.warn('⚠️ Attempted to send empty message');
+        return null;
       }
-      return await this.bot.sendMessage(chatId, text, options);
+  
+      let finalOptions = { ...options };
+      
+      if (options?.parse_mode === 'Markdown') {
+        const safeText = this.escapeMarkdown(text);
+        finalOptions = { ...options, text: safeText };
+        return await this.bot.sendMessage(chatId, safeText, finalOptions);
+      }
+      
+      if (options?.parse_mode === 'HTML') {
+        return await this.bot.sendMessage(chatId, text, finalOptions);
+      }
+      
+      return await this.bot.sendMessage(chatId, text, finalOptions);
+      
     } catch (error) {
       console.error('SendMessage error:', error.message);
+
       try {
-        return await this.bot.sendMessage(chatId, text);
+        const { parse_mode, ...restOptions } = options || {};
+        return await this.bot.sendMessage(chatId, text, restOptions);
       } catch (fallbackError) {
         console.error('Fallback sendMessage also failed:', fallbackError.message);
         return null;
       }
     }
+  }
+  
+  private escapeMarkdown(text: string): string {
+    const escapePattern = /([_*[\]()~`>#+\-=|{}.!])/g;
+    return text.replace(escapePattern, '\\$1');
   }
 
   async answerCallback(id: string) {

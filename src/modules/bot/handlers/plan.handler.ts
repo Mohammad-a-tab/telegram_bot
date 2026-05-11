@@ -63,7 +63,37 @@ export class PlanHandler {
 
   async deletePlan(chatId: number, userId: number, data: string) {
     if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
-    const planId = parseInt(data.split('_')[3]);
+    
+    const parts = data.split('_');
+    const planId = parseInt(parts[parts.length - 1]);
+    
+    if (isNaN(planId)) {
+      await this.botService.sendMessage(chatId, '❌ آیدی پلن نامعتبر است.');
+      return;
+    }
+    
+    const plan = await this.botService.planRepo.findOne({ 
+      where: { id: planId },
+      relations: ['configs']
+    });
+    
+    if (!plan) {
+      await this.botService.sendMessage(chatId, '❌ پلن یافت نشد.');
+      return;
+    }
+
+    const configCount = await this.botService.configRepo.count({ where: { plan_id: planId } });
+    
+    if (configCount > 0) {
+      await this.botService.sendMessage(chatId, 
+        `❌ نمی‌توانید این پلن را حذف کنید.\n\n` +
+        `📦 پلن: ${plan.name}\n` +
+        `📊 تعداد کانفیگ‌های این پلن: ${configCount} عدد\n\n` +
+        `⚠️ ابتدا تمام کانفیگ‌های این پلن را حذف کنید، سپس پلن را حذف نمایید.`
+      );
+      return;
+    }
+
     const success = await this.botService.planAdmin.deletePlan(planId);
     await this.botService.sendMessage(chatId, success ? '✅ پلن با موفقیت حذف شد.' : '❌ خطا در حذف پلن.');
   }
@@ -95,11 +125,26 @@ export class PlanHandler {
 
   async startEditPlanById(chatId: number, userId: number, data: string) {
     if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
-    const planId = parseInt(data.split('_')[5]);
+    const parts = data.split('_');
+    const planId = parseInt(parts[parts.length - 1]);
+    
+    if (isNaN(planId)) {
+      await this.botService.sendMessage(chatId, '❌ آیدی پلن نامعتبر است.');
+      return;
+    }
+    
+    const plan = await this.botService.planRepo.findOne({ where: { id: planId } });
+    if (!plan) {
+      await this.botService.sendMessage(chatId, '❌ پلن مورد نظر یافت نشد.');
+      return;
+    }
+    
     this.botService.setAdminState(userId, { action: 'edit_plan', step: 1, planId, data: {} });
+    
     await this.botService.sendMessage(chatId, 
-      `✏️ **ویرایش پلن #${planId}**\n\n` +
-      `1️⃣ نام\n2️⃣ توضیحات\n3️⃣ قیمت\n4️⃣ مدت (روز)\n5️⃣ حجم (گیگابایت)\n\n` +
+      `✏️ **ویرایش پلن: ${plan.name}**\n\n` +
+      `1️⃣ نام\n2️⃣ توضیحات\n3️⃣ قیمت (${plan.price.toLocaleString()} تومان)\n` +
+      `4️⃣ مدت (${plan.duration_days} روز)\n5️⃣ حجم (${plan.bandwidth_gb} گیگابایت)\n\n` +
       `لطفاً شماره مورد نظر را وارد کنید:`,
       { parse_mode: 'Markdown' }
     );

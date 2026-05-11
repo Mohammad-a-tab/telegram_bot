@@ -153,9 +153,9 @@ export class UserHandler {
       `• پاسخگویی به ترتیب اولویت انجام می‌شود\n` +
       `• برای اطلاع از وضعیت سفارش، از بخش "سرویس‌های من" استفاده کنید\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `✨ **ما همیشه کنار شما هستیم** ✨`;
+      `✨ ما همیشه کنار شما هستیم ✨`;
   
-    await this.botService.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      await this.botService.sendMessage(chatId, message, { parse_mode: 'HTML' });
   }
 
   async handleHowToConnect(chatId: number) {
