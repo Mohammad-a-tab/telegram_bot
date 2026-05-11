@@ -65,16 +65,50 @@ export class PlanAdminService {
 
       if (data.name !== undefined) plan.name = data.name;
       if (data.description !== undefined) plan.description = data.description;
-      if (data.price !== undefined && !isNaN(data.price)) plan.price = data.price;
-      if (data.discounted_price !== undefined && !isNaN(data.discounted_price)) {
-        plan.discounted_price = data.discounted_price;
+      
+      if (data.price !== undefined) {
+        const price = parseFloat(data.price as any);
+        if (isNaN(price)) {
+          throw new Error('قیمت وارد شده معتبر نیست');
+        }
+        plan.price = price;
+      }
+      
+      if (data.discounted_price !== undefined) {
+        const discountedPrice = parseFloat(data.discounted_price as any);
+        if (isNaN(discountedPrice)) {
+          throw new Error('قیمت تخفیف وارد شده معتبر نیست');
+        }
+        plan.discounted_price = discountedPrice;
         plan.has_discount = true;
       }
-      if (data.duration_days !== undefined && !isNaN(data.duration_days)) plan.duration_days = data.duration_days;
-      if (data.bandwidth_gb !== undefined && !isNaN(data.bandwidth_gb)) plan.bandwidth_gb = data.bandwidth_gb;
-      if (data.stock !== undefined && !isNaN(data.stock)) plan.stock = data.stock;
+      
+      if (data.duration_days !== undefined) {
+        const days = parseInt(data.duration_days as any);
+        if (isNaN(days)) {
+          throw new Error('مدت اعتبار وارد شده معتبر نیست');
+        }
+        plan.duration_days = days;
+      }
+      
+      if (data.bandwidth_gb !== undefined) {
+        const bandwidth = parseFloat(data.bandwidth_gb as any);
+        if (isNaN(bandwidth)) {
+          throw new Error('حجم ترافیک وارد شده معتبر نیست');
+        }
+        plan.bandwidth_gb = bandwidth;
+      }
+      
+      if (data.stock !== undefined) {
+        const stock = parseInt(data.stock as any);
+        if (isNaN(stock)) {
+          throw new Error('موجودی وارد شده معتبر نیست');
+        }
+        plan.stock = stock;
+      }
+      
       if (data.is_active !== undefined) plan.is_active = data.is_active;
-
+  
       const savedPlan = await queryRunner.manager.save(plan);
       await queryRunner.commitTransaction();
       return savedPlan;

@@ -17,16 +17,24 @@ async function bootstrap() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   
   if (!token) {
-    console.error('❌ Error: TELEGRAM_BOT_TOKEN is not set');
+    console.error('❌ Error: TELEGRAM_BOT_TOKEN is not set in .env file');
     process.exit(1);
   }
 
-  // هندلر سیگنال‌ها
   process.on('SIGINT', () => gracefulShutdown());
   process.on('SIGTERM', () => gracefulShutdown());
+
   process.on('uncaughtException', (error) => {
     console.error('🔥 Uncaught Exception:', error.message);
-    gracefulShutdown();
+    console.error(error.stack);
+
+    if (!isShuttingDown) {
+      console.log('⚠️ Bot continues running...');
+    }
+  });
+  
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('🔥 Unhandled Rejection:', reason);
   });
 
   try {
@@ -35,11 +43,11 @@ async function bootstrap() {
     console.log('💡 Send /start to your bot on Telegram');
     
     await app.listen(3000);
-    console.log('🚀 NestJS server running on http://localhost:3000');
+    console.log('🚀 Server running on port 3000');
     console.log('================================');
   } catch (error) {
     console.error('❌ Failed to start bot:', error.message);
-    console.log('🔄 Restarting in 10 seconds...');
+    console.log('🔄 Will retry in 10 seconds...');
     setTimeout(() => {
       process.exit(1);
     }, 10000);
@@ -55,10 +63,22 @@ async function gracefulShutdown() {
   if (botService) {
     try {
       await botService.stop();
-    } catch (e) {}
+      console.log('✅ Bot stopped gracefully');
+    } catch (error) {
+      console.error('❌ Error stopping bot:', error.message);
+    }
   }
   
-  process.exit(0);
+  setTimeout(() => {
+    console.log('👋 Goodbye!');
+    process.exit(0);
+  }, 2000);
 }
+
+process.on('exit', (code) => {
+  if (code !== 0 && !isShuttingDown) {
+    console.log(`⚠️ Process exited with code ${code}`);
+  }
+});
 
 bootstrap();

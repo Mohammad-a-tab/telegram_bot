@@ -195,38 +195,46 @@ export class PlanHandler {
   }
 
   async processEditPlan(chatId: number, userId: number, text: string, state: any) {
-    const step = state.step;
-    
-    if (step === 1) {
-      const fieldNum = parseInt(text);
-      const fields = ['name', 'description', 'price', 'duration_days', 'bandwidth_gb'];
-      if (fieldNum >= 1 && fieldNum <= fields.length) {
+    try {
+      const step = state.step;
+      
+      if (step === 1) {
+        const fieldNum = parseInt(text);
+        if (isNaN(fieldNum) || fieldNum < 1 || fieldNum > 5) {
+          await this.botService.sendMessage(chatId, '❌ لطفاً یک شماره معتبر (1 تا 5) وارد کنید.');
+          return;
+        }
+        const fields = ['name', 'description', 'price', 'duration_days', 'bandwidth_gb'];
         state.editField = fields[fieldNum - 1];
         state.step = 2;
         await this.botService.sendMessage(chatId, `لطفاً مقدار جدید برای ${state.editField} را وارد کنید:`);
-      } else {
-        await this.botService.sendMessage(chatId, '❌ شماره نامعتبر است.');
-      }
-    } else if (step === 2) {
-      let value: any = text;
-      if (['price', 'duration_days', 'bandwidth_gb'].includes(state.editField)) {
-        value = parseInt(text);
-        if (isNaN(value)) {
-          await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر وارد کنید.');
-          return;
+      } else if (step === 2) {
+        let value: any = text;
+        
+        if (['price', 'duration_days', 'bandwidth_gb'].includes(state.editField)) {
+          value = parseInt(text);
+          if (isNaN(value)) {
+            await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر وارد کنید.');
+            return;
+          }
         }
+        
+        const updateData = { [state.editField]: value };
+        const updatedPlan = await this.botService.planAdmin.updatePlan(state.planId, updateData);
+        
+        if (updatedPlan) {
+          await this.botService.sendMessage(chatId, `✅ فیلد ${state.editField} با موفقیت به "${value}" تغییر یافت.`);
+        } else {
+          await this.botService.sendMessage(chatId, '❌ خطا در ویرایش پلن.');
+        }
+        this.botService.clearAdminState(userId);
       }
-      
-      const updateData = { [state.editField]: value };
-      const updatedPlan = await this.botService.planAdmin.updatePlan(state.planId, updateData);
-      if (updatedPlan) {
-        await this.botService.sendMessage(chatId, `✅ فیلد ${state.editField} با موفقیت به ${value} تغییر یافت.`);
-      } else {
-        await this.botService.sendMessage(chatId, '❌ خطا در ویرایش پلن.');
-      }
+      this.botService.setAdminState(userId, state);
+    } catch (error) {
+      console.error('Error in processEditPlan:', error);
+      await this.botService.sendMessage(chatId, '❌ خطایی رخ داد. لطفاً دوباره تلاش کنید.');
       this.botService.clearAdminState(userId);
     }
-    this.botService.setAdminState(userId, state);
   }
 
   async showPlansForConfig(chatId: number, userId: number) {
