@@ -16,7 +16,102 @@ export class StockService {
     private cacheService: CacheService,
   ) {}
 
-  // استخراج توکن از لینک ساب
+  async addConfigs(planId: number, input: string): Promise<{ added: number; failed: string[]; duplicates: string[] }> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+  
+    const added: Config[] = [];
+    const failed: string[] = [];
+    const duplicates: string[] = [];
+  
+    try {
+      const plan = await queryRunner.manager.findOne(Plan, {
+        where: { id: planId },
+        lock: { mode: 'pessimistic_write' }
+      });
+      
+      if (!plan) {
+        throw new Error(`پلن با آیدی ${planId} یافت نشد`);
+      }
+  
+      // استخراج لینک‌ها از ورودی
+      const configLinks = this.extractLinksFromInput(input);
+      
+      if (configLinks.length === 0) {
+        throw new Error('هیچ لینک معتبری یافت نشد');
+      }
+  
+      // گرفتن لینک‌های موجود
+      const existingConfigs = await queryRunner.manager.find(Config, {
+        where: { plan_id: planId },
+        select: ['config_link'],
+      });
+      const existingLinks = new Set(existingConfigs.map(c => c.config_link));
+  
+      for (const link of configLinks) {
+        const token = this.extractToken(link);
+        
+        if (existingLinks.has(token)) {
+          duplicates.push(link);
+          continue;
+        }
+  
+        try {
+          const newConfig = queryRunner.manager.create(Config, {
+            plan_id: planId,
+            config_link: token,
+            is_sold_out: false,
+          });
+          
+          await queryRunner.manager.save(newConfig);
+          added.push(newConfig);
+          existingLinks.add(token);
+        } catch (err) {
+          failed.push(link);
+        }
+      }
+      
+      if (added.length > 0) {
+        plan.stock = (plan.stock || 0) + added.length;
+        await queryRunner.manager.save(plan);
+      }
+  
+      await queryRunner.commitTransaction();
+      
+      await this.cacheService.del(`available_config_${planId}`);
+      await this.cacheService.del(`can_purchase_${planId}`);
+      await this.cacheService.del(`remaining_stock_${planId}`);
+      
+      return { added: added.length, failed, duplicates };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw new Error(`خطا در افزودن کانفیگ‌ها: ${error.message}`);
+    } finally {
+      await queryRunner.release();
+    }
+  }
+  
+  private extractLinksFromInput(input: string): string[] {
+    const links: string[] = [];
+    const lines = input.split(/\r?\n/);
+    
+    for (const line of lines) {
+      const parts = line.split(',');
+      for (const part of parts) {
+        const subparts = part.split(/\s+/);
+        for (const subpart of subparts) {
+          const trimmed = subpart.trim();
+          if (trimmed && (trimmed.startsWith('https://') || trimmed.startsWith('http://'))) {
+            links.push(trimmed);
+          }
+        }
+      }
+    }
+    
+    return [...new Set(links)];
+  }
+  
   private extractToken(link: string): string {
     const patterns = [
       /\/sub\/([a-zA-Z0-9]+)/,
@@ -31,133 +126,6 @@ export class StockService {
       }
     }
     return link;
-  }
-
-  async addConfigs(planId: number, input: string): Promise<{ added: number; failed: string[]; duplicates: string[] }> {
-    console.log('=========================================');
-    console.log('🔧 StockService.addConfigs called');
-    console.log(`📦 planId: ${planId}`);
-    console.log(`📝 input: ${input.substring(0, 200)}...`);
-    
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-  
-    const added: Config[] = [];
-    const failed: string[] = [];
-    const duplicates: string[] = [];
-  
-    try {
-      // بررسی وجود پلن
-      console.log('🔍 Checking if plan exists...');
-      const plan = await queryRunner.manager.findOne(Plan, {
-        where: { id: planId },
-        lock: { mode: 'pessimistic_write' }
-      });
-      
-      if (!plan) {
-        console.log('❌ Plan not found!');
-        throw new Error(`پلن با آیدی ${planId} یافت نشد`);
-      }
-      console.log(`✅ Plan found: ${plan.name}`);
-  
-      // استخراج لینک‌ها از ورودی
-      console.log('🔍 Extracting links from input...');
-      const lines = input.split(/\r?\n/);
-      const configLinks: string[] = [];
-  
-      for (const line of lines) {
-        const parts = line.split(/[,\s]+/);
-        for (const part of parts) {
-          const trimmed = part.trim();
-          if (trimmed && (trimmed.startsWith('https://') || trimmed.startsWith('http://'))) {
-            configLinks.push(trimmed);
-          }
-        }
-      }
-  
-      console.log(`📊 Extracted ${configLinks.length} links:`);
-      for (let i = 0; i < Math.min(configLinks.length, 5); i++) {
-        console.log(`   ${i + 1}. ${configLinks[i]}`);
-      }
-      if (configLinks.length > 5) {
-        console.log(`   ... and ${configLinks.length - 5} more`);
-      }
-  
-      if (configLinks.length === 0) {
-        console.log('❌ No valid links found!');
-        throw new Error('هیچ لینک معتبری یافت نشد');
-      }
-  
-      // گرفتن لینک‌های موجود
-      console.log('🔍 Checking existing configs...');
-      const existingConfigs = await queryRunner.manager.find(Config, {
-        where: { plan_id: planId },
-        select: ['config_link'],
-      });
-      const existingLinks = new Set(existingConfigs.map(c => c.config_link));
-      console.log(`📊 Existing configs count: ${existingLinks.size}`);
-  
-      // پردازش هر لینک
-      console.log('🔄 Processing each link...');
-      for (const link of configLinks) {
-        const token = this.extractToken(link);
-        console.log(`   Processing: ${link.substring(0, 50)}... -> token: ${token}`);
-        
-        if (existingLinks.has(token)) {
-          duplicates.push(link);
-          console.log(`   ⚠️ Duplicate detected: ${token}`);
-          continue;
-        }
-  
-        try {
-          const newConfig = queryRunner.manager.create(Config, {
-            plan_id: planId,
-            config_link: token,
-            is_sold_out: false,
-          });
-          
-          const saved = await queryRunner.manager.save(newConfig);
-          added.push(newConfig);
-          existingLinks.add(token);
-          console.log(`   ✅ Added config with id: ${saved.id}`);
-        } catch (err) {
-          failed.push(link);
-          console.error(`   ❌ Failed to add: ${link}`, err.message);
-        }
-      }
-      
-      // افزایش موجودی پلن
-      if (added.length > 0) {
-        console.log(`📊 Updating plan stock... +${added.length}`);
-        plan.stock = (plan.stock || 0) + added.length;
-        await queryRunner.manager.save(plan);
-        console.log(`📊 New stock: ${plan.stock}`);
-      }
-  
-      await queryRunner.commitTransaction();
-      console.log('✅ Transaction committed successfully');
-      
-      // پاک کردن کش
-      console.log('🗑️ Clearing cache...');
-      await this.cacheService.del(`available_config_${planId}`);
-      await this.cacheService.del(`can_purchase_${planId}`);
-      await this.cacheService.del(`remaining_stock_${planId}`);
-      
-      console.log(`📊 Final result: added=${added.length}, duplicates=${duplicates.length}, failed=${failed.length}`);
-      console.log('=========================================');
-      
-      return { added: added.length, failed, duplicates };
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      console.error('❌ Transaction failed, rolling back...');
-      console.error('❌ Error:', error.message);
-      console.error('❌ Stack:', error.stack);
-      console.log('=========================================');
-      throw new Error(`خطا در افزودن کانفیگ‌ها: ${error.message}`);
-    } finally {
-      await queryRunner.release();
-    }
   }
 
 

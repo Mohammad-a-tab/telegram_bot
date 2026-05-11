@@ -20,7 +20,18 @@ export const plansManagementKeyboard = {
       [{ text: '✏️ ویرایش پلن', callback_data: 'admin_edit_plan' }],
       [{ text: '🗑 حذف پلن', callback_data: 'admin_delete_plan' }],
       [{ text: '🔄 فعال/غیرفعال کردن', callback_data: 'admin_toggle_plan' }],
+      [{ text: '🏷️ مدیریت تخفیف', callback_data: 'admin_discount_menu' }],  // جدید
       [{ text: '🔙 بازگشت به منوی اصلی', callback_data: 'admin_menu' }]
+    ]
+  }
+};
+
+export const discountManagementKeyboard = {
+  reply_markup: {
+    inline_keyboard: [
+      [{ text: '🎁 فعال‌سازی تخفیف روی پلن', callback_data: 'admin_enable_discount' }],
+      [{ text: '🚫 غیرفعال‌سازی تخفیف روی پلن', callback_data: 'admin_disable_discount' }],
+      [{ text: '🔙 بازگشت', callback_data: 'admin_plans_menu' }]
     ]
   }
 };
