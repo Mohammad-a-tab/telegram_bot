@@ -37,8 +37,6 @@ export class UserHandler {
       `فرصت رو از دست ندهید! 🚀\n\n` +
       `👇 لطفاً یکی از پلن‌های زیر را انتخاب کنید:`;
   
-    await this.botService.sendMessage(chatId, headerMessage, { parse_mode: 'Markdown' });
-  
     const planButtons = plans.map(plan => {
       let buttonText = '';
       if (plan.has_discount && plan.discounted_price) {
@@ -50,7 +48,8 @@ export class UserHandler {
       return [{ text: buttonText, callback_data: `plan_${plan.id}` }];
     });
   
-    await this.botService.sendMessage(chatId, ' ', {
+    await this.botService.sendMessage(chatId, headerMessage, {
+      parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: planButtons,
       },
