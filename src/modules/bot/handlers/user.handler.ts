@@ -137,7 +137,26 @@ export class UserHandler {
   }
 
   async handleSupport(chatId: number) {
-    await this.botService.sendMessage(chatId, '💬 پشتیبانی: @support');
+    const supportId = process.env.SUPPORT_ID;
+    
+    const message = 
+      `💬 **پشتیبانی و راهنمایی**\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `🤝 **ساعات پاسخگویی:**\n` +
+      `🕘 ۹ صبح تا ۱۲ شب (همه روزه)\n\n` +
+      `📌 **نحوه ارتباط با ما:**\n` +
+      `برای ارتباط با تیم پشتیبانی، از راه‌های زیر استفاده کنید:\n\n` +
+      `📱 **آیدی پشتیبانی:**\n` +
+      `${supportId}\n\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n` +
+      `💡 **تذکر مهم:**\n` +
+      `• لطفاً شماره سفارش خود را همراه پیام ارسال کنید\n` +
+      `• پاسخگویی به ترتیب اولویت انجام می‌شود\n` +
+      `• برای اطلاع از وضعیت سفارش، از بخش "سرویس‌های من" استفاده کنید\n` +
+      `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
+      `✨ **ما همیشه کنار شما هستیم** ✨`;
+  
+    await this.botService.sendMessage(chatId, message, { parse_mode: 'Markdown' });
   }
 
   async handleHowToConnect(chatId: number) {
