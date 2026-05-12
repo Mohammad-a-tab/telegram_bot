@@ -111,7 +111,7 @@ export class UserHandler {
     `👤 صاحب کارت:\n${cardHolder}\n\n` +
     `💰 مبلغ قابل پرداخت:\n` +
     `${formatPrice(finalPrice)} تومان\n\n` +
-    `🖼 **پس از پرداخت، تصویر رسید را ارسال کنید.**`;
+    `🖼 پس از پرداخت، تصویر رسید را ارسال کنید.`;
 
     const sentMessage = await this.botService.sendMessage(chatId, message, {
       parse_mode: 'Markdown',
