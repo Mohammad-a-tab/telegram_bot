@@ -24,7 +24,7 @@ export const getPlanKeyboard = (plans: any[]) => {
     let displayText = '';
     
     if (plan.has_discount && plan.discounted_price) {
-      displayText = `📦 ${plan.name} | 💰${plan.price.toLocaleString()} → 💎${plan.discounted_price.toLocaleString()} تومان 🔥`;
+      displayText = `📦 ${plan.name} 💰${plan.price.toLocaleString()} ← 💎${plan.discounted_price.toLocaleString()} 🔥`;
     } else {
       displayText = `📦 ${plan.name} | 💰${plan.price.toLocaleString()} تومان`;
     }

@@ -115,11 +115,11 @@ export class OrderHandler {
     const queryRunner = this.botService.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-
+  
     try {
+      // 🔥 اصلاح: بدون relations، فقط order رو بگیر
       const order = await queryRunner.manager.findOne(Order, { 
-        where: { id: orderId }, 
-        relations: ['plan', 'user'],
+        where: { id: orderId },
         lock: { mode: 'pessimistic_write' }
       });
       
@@ -129,6 +129,22 @@ export class OrderHandler {
         return;
       }
       
+      // گرفتن پلن جداگانه
+      const plan = await queryRunner.manager.findOne(Plan, {
+        where: { id: order.plan_id },
+        lock: { mode: 'pessimistic_write' }
+      });
+      
+      if (!plan) {
+        await queryRunner.rollbackTransaction();
+        await this.botService.sendMessage(adminChatId, '❌ پلن یافت نشد.');
+        return;
+      }
+      
+      // گرفتن کاربر جداگانه (برای ارسال پیام بعد از تراکنش)
+      const user = await this.botService.userRepo.findOne({ where: { id: order.user_id } });
+      
+      // حذف دکمه‌های پیام قبلی (خارج از تراکنش)
       if (order.admin_message_id) {
         try {
           await this.botService.bot.editMessageReplyMarkup(
@@ -140,7 +156,8 @@ export class OrderHandler {
         }
       }
       
-      const config = await this.botService.stock.reserveConfig(order.plan_id);
+      // رزرو کانفیگ
+      const config = await this.botService.stock.reserveConfig(plan.id);
       if (!config) {
         await queryRunner.rollbackTransaction();
         await this.botService.sendMessage(adminChatId, '❌ کانفیگ به اتمام رسیده است.');
@@ -158,6 +175,7 @@ export class OrderHandler {
       
       await queryRunner.commitTransaction();
       
+      // پاک کردن کش (خارج از تراکنش)
       await this.botService.cache.del(`pending_order_${order.user_id}`);
       
       const subLink = await this.botService.sub.getSub();
@@ -185,7 +203,7 @@ export class OrderHandler {
     } catch (error) {
       await queryRunner.rollbackTransaction();
       console.error('Error approving order:', error);
-      await this.botService.sendMessage(adminChatId, '❌ خطا در تایید سفارش.');
+      await this.botService.sendMessage(adminChatId, `❌ خطا در تایید سفارش: ${error.message}`);
     } finally {
       await queryRunner.release();
     }

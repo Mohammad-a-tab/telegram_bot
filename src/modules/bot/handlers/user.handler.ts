@@ -17,7 +17,7 @@ export class UserHandler {
 
   async showPlans(chatId: number, userId: number, username?: string, firstName?: string, lastName?: string) {
     if (!await this.botService.ensureMembership(userId, chatId)) return;
-
+  
     await this.botService.upsertUser(userId, username, firstName, lastName);
   
     let plans = await this.botService.cache.getPlans();
@@ -42,15 +42,15 @@ export class UserHandler {
       let buttonText = '';
       if (plan.has_discount && plan.discounted_price) {
         const percent = Math.round(((plan.price - plan.discounted_price) / plan.price) * 100);
-        buttonText = `📦 ${plan.name} | 💰${plan.price} تومان → 💎${plan.discounted_price} تومان (🔥-${percent}%)`;
+        buttonText = `📦 ${plan.name} 💰${plan.price.toLocaleString()} ← 💎${plan.discounted_price.toLocaleString()} (-${percent}%) 🔥`;
       } else {
-        buttonText = `📦 ${plan.name} | 💰${plan.price} تومان`;
+        buttonText = `📦 ${plan.name} 💰${plan.price.toLocaleString()}`;
       }
       return [{ text: buttonText, callback_data: `plan_${plan.id}` }];
     });
   
     await this.botService.sendMessage(chatId, headerMessage, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: planButtons,
       },
@@ -84,20 +84,20 @@ export class UserHandler {
     this.botService.setAdminState(userId, { action: 'waiting_for_receipt', planId });
     const finalPrice = plan.has_discount && plan.discounted_price ? plan.discounted_price : plan.price;
     const cardNumber = process.env.CARD_NUMBER || '**********';
-    const cardHolder = process.env.CARD_HOLDER || '**********';
+    const cardHolder = "نرگس کارگران";
     const formatPrice = (price: number) => price.toLocaleString('fa-IR');
   
     const message = 
-      `💳 **اطلاعات پرداخت**\n\n` +
+      `💳 اطلاعات پرداخت\n\n` +
       `📦 پلن: ${plan.name}\n` +
       `💰 قیمت اصلی: ${formatPrice(plan.price)} تومان\n` +
       `✅ مبلغ نهایی: ${formatPrice(finalPrice)} تومان\n\n` +
-      `💳 **شماره کارت:**\n` +
+      `💳 شماره کارت:\n` +
       `<code>${cardNumber}</code>\n\n` +
-      `👤 **صاحب کارت:**\n${cardHolder}\n\n` +
-      `💰 **مبلغ قابل پرداخت:**\n` +
+      `👤 صاحب کارت: ${cardHolder}\n\n` +
+      `💰 مبلغ قابل پرداخت:\n` +
       `<code>${formatPrice(finalPrice)} تومان</code>\n\n` +
-      `🖼 **پس از پرداخت، تصویر رسید را ارسال کنید.**`;
+      `🖼 پس از پرداخت، تصویر رسید را ارسال کنید.`;
     
     await this.botService.sendMessage(chatId, message, {
       parse_mode: 'HTML',
