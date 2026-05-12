@@ -78,28 +78,28 @@ export class UserHandler {
       await this.botService.sendMessage(chatId, '⚠️ متأسفانه این پلن به اتمام رسیده است.');
       return;
     }
-
+    
     await this.botService.upsertUser(userId, username, firstName, lastName);
     
     this.botService.setAdminState(userId, { action: 'waiting_for_receipt', planId });
     const finalPrice = plan.has_discount && plan.discounted_price ? plan.discounted_price : plan.price;
     const cardNumber = process.env.CARD_NUMBER || '**********';
-    const cardHolder = "نرگس کارگران";
+    const cardHolder = process.env.CARD_HOLDER || '**********';
     const formatPrice = (price: number) => price.toLocaleString('fa-IR');
   
     const message = 
-      `💳 اطلاعات پرداخت\n\n` +
+      `💳 **اطلاعات پرداخت**\n\n` +
       `📦 پلن: ${plan.name}\n` +
       `💰 قیمت اصلی: ${formatPrice(plan.price)} تومان\n` +
       `✅ مبلغ نهایی: ${formatPrice(finalPrice)} تومان\n\n` +
-      `💳 شماره کارت:\n` +
+      `💳 **شماره کارت:**\n` +
       `<code>${cardNumber}</code>\n\n` +
-      `👤 صاحب کارت: ${cardHolder}\n\n` +
-      `💰 مبلغ قابل پرداخت:\n` +
+      `👤 **صاحب کارت:**\n${cardHolder}\n\n` +
+      `💰 **مبلغ قابل پرداخت:**\n` +
       `<code>${formatPrice(finalPrice)} تومان</code>\n\n` +
-      `🖼 پس از پرداخت، تصویر رسید را ارسال کنید.`;
+      `🖼 **پس از پرداخت، تصویر رسید را ارسال کنید.**`;
     
-    await this.botService.sendMessage(chatId, message, {
+    const sentMessage = await this.botService.sendMessage(chatId, message, {
       parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
@@ -107,6 +107,12 @@ export class UserHandler {
           [{ text: '🔙 بازگشت', callback_data: 'buy' }]
         ]
       }
+    });
+    
+    this.botService.setAdminState(userId, { 
+      action: 'waiting_for_receipt', 
+      planId,
+      messageId: sentMessage.message_id 
     });
   }
 
@@ -132,7 +138,7 @@ export class UserHandler {
     const inlineKeyboard = services.map(s => [{ text: `🛍️ ${s.name}`, callback_data: `service_detail_${s.id}` }]);
     inlineKeyboard.push([{ text: '🔙 بازگشت', callback_data: 'main_menu' }]);
   
-    await this.botService.sendMessage(chatId, '🛍️ **سرویس‌های من**\n\nلیست سرویس‌های فعال شما:', {
+    await this.botService.sendMessage(chatId, '🛍️ سرویس‌های من\n\nلیست سرویس‌های فعال شما:', {
       parse_mode: 'Markdown',
       reply_markup: { inline_keyboard: inlineKeyboard }
     });
@@ -142,16 +148,16 @@ export class UserHandler {
     const supportId = process.env.SUPPORT_ID;
     
     const message = 
-      `💬 **پشتیبانی و راهنمایی**\n\n` +
+      `💬 پشتیبانی و راهنمایی\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `🤝 **ساعات پاسخگویی:**\n` +
+      `🤝 ساعات پاسخگویی:\n` +
       `🕘 ۹ صبح تا ۱۲ شب (همه روزه)\n\n` +
-      `📌 **نحوه ارتباط با ما:**\n` +
+      `📌 نحوه ارتباط با ما:\n` +
       `برای ارتباط با تیم پشتیبانی، از راه‌های زیر استفاده کنید:\n\n` +
-      `📱 **آیدی پشتیبانی:**\n` +
+      `📱 آیدی پشتیبانی:\n` +
       `${supportId}\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
-      `💡 **تذکر مهم:**\n` +
+      `💡 تذکر مهم:\n` +
       `• لطفاً شماره سفارش خود را همراه پیام ارسال کنید\n` +
       `• پاسخگویی به ترتیب اولویت انجام می‌شود\n` +
       `• برای اطلاع از وضعیت سفارش، از بخش "سرویس‌های من" استفاده کنید\n` +

@@ -2,6 +2,7 @@ import { BotService } from '../bot.service';
 import { ordersManagementKeyboard } from '../keyboards/admin.keyboard';
 import { Plan } from '../../plan/entities/plan.entity';
 import { Order } from '../../order/entities/order.entity';
+import { Config } from 'src/modules/config/entities/config.entity';
 
 export class OrderHandler {
   constructor(private readonly botService: BotService) {}
@@ -32,11 +33,22 @@ export class OrderHandler {
     const queryRunner = this.botService.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
-
+  
     try {
       const chatId = msg.chat.id;
       const userId = msg.from.id;
       const photo = msg.photo[msg.photo.length - 1];
+      
+      if (state.messageId) {
+        try {
+          await this.botService.bot.editMessageReplyMarkup(
+            { inline_keyboard: [] },
+            { chat_id: chatId, message_id: state.messageId }
+          );
+        } catch (error) {
+          console.error('Failed to remove send receipt button:', error.message);
+        }
+      }
       
       const plan = await queryRunner.manager.findOne(Plan, {
         where: { id: state.planId },
@@ -67,7 +79,7 @@ export class OrderHandler {
       const username = msg.from.username ? `@${msg.from.username}` : `[${msg.from.first_name}](tg://user?id=${userId})`;
       
       const adminMessage = 
-        `🆕 **سفارش جدید!**\n\n` +
+        `🆕 سفارش جدید!\n\n` +
         `👤 کاربر: ${username}\n` +
         `🆔 آیدی: <code>${userId}</code>\n` +
         `📦 پلن: ${plan.name}\n` +
@@ -117,7 +129,6 @@ export class OrderHandler {
     await queryRunner.startTransaction();
   
     try {
-      // 🔥 اصلاح: بدون relations، فقط order رو بگیر
       const order = await queryRunner.manager.findOne(Order, { 
         where: { id: orderId },
         lock: { mode: 'pessimistic_write' }
@@ -129,7 +140,6 @@ export class OrderHandler {
         return;
       }
       
-      // گرفتن پلن جداگانه
       const plan = await queryRunner.manager.findOne(Plan, {
         where: { id: order.plan_id },
         lock: { mode: 'pessimistic_write' }
@@ -141,10 +151,18 @@ export class OrderHandler {
         return;
       }
       
-      // گرفتن کاربر جداگانه (برای ارسال پیام بعد از تراکنش)
-      const user = await this.botService.userRepo.findOne({ where: { id: order.user_id } });
+      const config = await queryRunner.manager.findOne(Config, {
+        where: { plan_id: plan.id, is_sold_out: false },
+        lock: { mode: 'pessimistic_write' }
+      });
       
-      // حذف دکمه‌های پیام قبلی (خارج از تراکنش)
+      if (!config) {
+        await queryRunner.rollbackTransaction();
+        await this.botService.sendMessage(adminChatId, '❌ کانفیگ به اتمام رسیده است.');
+        await this.botService.sendMessage(order.user_id, '❌ متأسفانه کانفیگ مورد نظر به اتمام رسیده است.');
+        return;
+      }
+      
       if (order.admin_message_id) {
         try {
           await this.botService.bot.editMessageReplyMarkup(
@@ -156,13 +174,12 @@ export class OrderHandler {
         }
       }
       
-      // رزرو کانفیگ
-      const config = await this.botService.stock.reserveConfig(plan.id);
-      if (!config) {
-        await queryRunner.rollbackTransaction();
-        await this.botService.sendMessage(adminChatId, '❌ کانفیگ به اتمام رسیده است.');
-        await this.botService.sendMessage(order.user_id, '❌ متأسفانه کانفیگ مورد نظر به اتمام رسیده است.');
-        return;
+      config.is_sold_out = true;
+      await queryRunner.manager.save(config);
+      
+      if (plan.stock > 0) {
+        plan.stock = plan.stock - 1;
+        await queryRunner.manager.save(plan);
       }
       
       order.status = 1;
@@ -170,23 +187,23 @@ export class OrderHandler {
       order.approved_at = new Date();
       await queryRunner.manager.save(order);
       
-      config.is_sold_out = true;
-      await queryRunner.manager.save(config);
-      
       await queryRunner.commitTransaction();
       
-      // پاک کردن کش (خارج از تراکنش)
       await this.botService.cache.del(`pending_order_${order.user_id}`);
+      await this.botService.cache.del(`available_config_${plan.id}`);
+      await this.botService.cache.del(`can_purchase_${plan.id}`);
+      await this.botService.cache.del(`remaining_stock_${plan.id}`);
       
       const subLink = await this.botService.sub.getSub();
       const finalLink = `${subLink}${config.config_link}`;
       
       const message = 
-        `🎉 **تبریک!** 🎉\n\n` +
+        `🎉 تبریک! 🎉\n\n` +
         `✅ سفارش شما با موفقیت تایید شد!\n\n` +
-        `🔗 **لینک اشتراک شما:**\n` +
-        `\`${finalLink}\`\n\n` +
-        `📌 برای کپی کردن، روی لینک کلیک کنید.`;
+        `📦 پلن: ${plan.name}\n` +
+        `💰 مبلغ: ${order.amount.toLocaleString()} تومان\n` +
+        `🔗 لینک اشتراک شما:\n` +
+        `\`${finalLink}\``;
       
       await this.botService.sendMessage(order.user_id, message, {
         parse_mode: 'Markdown',
@@ -259,7 +276,7 @@ export class OrderHandler {
   async sendConfigLink(chatId: number, userId: number, orderId: number) {
     const order = await this.botService.orderRepo.findOne({ 
       where: { id: orderId, user_id: userId },
-      relations: ['config']
+      relations: ['config', 'plan']
     });
     
     if (!order || order.status !== 1) {
@@ -270,13 +287,25 @@ export class OrderHandler {
     const subLink = await this.botService.sub.getSub();
     const configLink = order.config?.config_link || '';
     const finalLink = `${subLink}${configLink}`;
+    const volumeText = order.plan?.bandwidth_gb && order.plan.bandwidth_gb > 0 ? `${order.plan.bandwidth_gb} GB` : '';
     
-    await this.botService.sendMessage(chatId, 
-      `🔗 **لینک اشتراک شما**\n\n` +
+    const message = 
+      `🔗 لینک اشتراک شما\n\n` +
+      `📦 پلن: ${order.plan?.name}\n` +
+      `${volumeText ? `📊 حجم: ${volumeText}\n` : ''}` +
+      `⏱ مدت باقی مانده: محاسبه نشده\n\n` +
       `\`${finalLink}\`\n\n` +
-      `📌 برای کپی کردن، روی لینک کلیک کنید.`,
-      { parse_mode: 'Markdown' }
-    );
+      `📌 برای کپی کردن، روی لینک کلیک کنید.`;
+    
+    await this.botService.sendMessage(chatId, message, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🔧 نحوه اتصال', callback_data: 'how_to_connect' }],
+          [{ text: '🏠 بازگشت به صفحه اصلی', callback_data: 'main_menu' }]
+        ]
+      }
+    });
   }
 
   async listAllOrders(chatId: number, userId: number) { 
@@ -312,7 +341,7 @@ export class OrderHandler {
       return;
     }
     
-    let message = '📋 **لیست سفارشات**\n\n';
+    let message = '📋 لیست سفارشات\n\n';
     for (const order of orders) {
       const statusText = order.status === 0 ? '⏳ در انتظار' : order.status === 1 ? '✅ تایید شده' : '❌ رد شده';
       const userDisplay = order.user?.username ? `@${order.user.username}` : (order.user?.first_name || order.user_id);
@@ -336,7 +365,7 @@ export class OrderHandler {
     const rejectedCount = await this.botService.orderRepo.count({ where: { status: 2 } });
     
     await this.botService.sendMessage(chatId, 
-      `📋 **مدیریت سفارشات**\n\n📊 آمار سفارشات:\n• ⏳ در انتظار: ${pendingCount}\n• ✅ تایید شده: ${approvedCount}\n• ❌ رد شده: ${rejectedCount}\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید:`,
+      `📋 مدیریت سفارشات\n\n📊 آمار سفارشات:\n• ⏳ در انتظار: ${pendingCount}\n• ✅ تایید شده: ${approvedCount}\n• ❌ رد شده: ${rejectedCount}\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید:`,
       { parse_mode: 'Markdown', ...ordersManagementKeyboard }
     );
   }

@@ -19,17 +19,16 @@ export class ServiceHandler {
     const expiryDate = order.expires_at ? new Date(order.expires_at) : new Date(order.approved_at || order.created_at);
     expiryDate.setDate(expiryDate.getDate() + (plan?.duration_days || 30));
     const daysLeft = Math.ceil((expiryDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
-  
-    const volumeIcon = plan?.bandwidth_gb === 0 ? '♾️' : '📊';
-    const volumeText = plan?.bandwidth_gb === 0 ? 'نامحدود' : `${plan?.bandwidth_gb} گیگابایت`;
+ 
+    const volumeText = `${plan?.bandwidth_gb} GB`;
     const configLink = config?.config_link || '';
   
     const message = 
-      `🌟 **جزئیات سرویس** 🌟\n\n` +
-      `📛 **نام اشتراک:** ${plan?.name}\n` +
-      `${volumeIcon} **حجم اشتراک:** ${volumeText}\n` +
-      `👥 **محدودیت کاربر:** ♾️\n` +
-      `⏰ **زمان باقی مانده:** ${daysLeft > 0 ? daysLeft : 0} روز\n\n` +
+      `🌟 جزئیات سرویس 🌟\n\n` +
+      `📛 نام اشتراک: ${plan?.name}\n` +
+      `📊 حجم اشتراک: ${volumeText}\n` +
+      `👥 محدودیت کاربر: ♾️\n` +
+      `⏰ زمان باقی مانده: ${daysLeft > 0 ? daysLeft : 0} روز\n\n` +
       `🔗 لینک اشتراک: \`${subLink}${configLink}\``;
   
     await this.botService.sendMessage(chatId, message, { parse_mode: 'Markdown' });
@@ -38,7 +37,7 @@ export class ServiceHandler {
   async copyConfigLink(chatId: number, userId: number, configLink: string) {
     const subLink = await this.botService.sub.getSub();
     await this.botService.sendMessage(chatId, 
-      `🔗 **لینک اشتراک شما**\n\n\`${subLink}${configLink}\`\n\n📌 برای کپی کردن، روی لینک بالا کلیک کنید.`,
+      `🔗 لینک اشتراک شما\n\n\`${subLink}${configLink}\`\n\n📌 برای کپی کردن، روی لینک بالا کلیک کنید.`,
       { parse_mode: 'Markdown' }
     );
   }
