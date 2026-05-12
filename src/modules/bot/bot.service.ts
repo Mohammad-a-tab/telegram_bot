@@ -23,7 +23,6 @@ import { DiscountHandler } from './handlers/discount.handler';
 import { ServiceHandler } from './handlers/service.handler';
 import { CallbackHandler } from './handlers/callback.handler';
 import { getMainKeyboard } from './keyboards/main.keyboard';
-import { convert } from 'telegram-markdown-v2';
 import { PendingOrderCheckerService } from '../order/pending-order.checker.service';
 
 const TelegramBot = require('node-telegram-bot-api');
@@ -173,37 +172,30 @@ export class BotService {
 
   async sendMessage(chatId: number, text: string, options?: any) {
     try {
-        if (!text || text.trim() === '') {
-            console.warn('⚠️ متن ارسالی خالی است');
-            return null;
-        }
-
-        let finalOptions = { ...options };
-        
-        if (options?.parse_mode === 'MarkdownV2') {
-            // تبدیل خودکار و ایمن Markdown به فرمت استاندارد تلگرام
-            const safeText = convert(text, 'escape');
-            finalOptions = { ...options, text: safeText };
-            return await this.bot.sendMessage(chatId, safeText, finalOptions);
-        }
-        
-        if (options?.parse_mode === 'HTML') {
-            return await this.bot.sendMessage(chatId, text, finalOptions);
-        }
-        
-        return await this.bot.sendMessage(chatId, text, finalOptions);
-        
+      if (!text || text.trim() === '') {
+        console.warn('⚠️ Attempted to send empty message');
+        return null;
+      }
+    
+      // اگر parse_mode Markdown یا HTML هست، حذفش کن
+      let finalOptions = { ...options };
+      if (finalOptions.parse_mode === 'Markdown' || finalOptions.parse_mode === 'HTML') {
+        delete finalOptions.parse_mode;
+      }
+      
+      return await this.bot.sendMessage(chatId, text, finalOptions);
+      
     } catch (error) {
-        console.error('خطا در ارسال پیام:', error.message);
-        try {
-            const { parse_mode, ...restOptions } = options || {};
-            return await this.bot.sendMessage(chatId, text, restOptions);
-        } catch (fallbackError) {
-            console.error('خطا در ارسال مجدد پیام:', fallbackError.message);
-            return null;
-        }
+      console.error('SendMessage error:', error.message);
+      try {
+        const { parse_mode, ...restOptions } = options || {};
+        return await this.bot.sendMessage(chatId, text, restOptions);
+      } catch (fallbackError) {
+        console.error('Fallback sendMessage also failed:', fallbackError.message);
+        return null;
+      }
     }
-}
+  }
   
   async answerCallback(id: string) {
     try { 
