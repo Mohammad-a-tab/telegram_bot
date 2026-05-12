@@ -177,7 +177,7 @@ export class PlanHandler {
   async startEditPlanById(chatId: number, userId: number, data: string) {
     if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
     const parts = data.split('_');
-    const planId = parseInt(parts[parts.length - 1]);
+    const planId = parseInt(parts[parts.length - 1]); 
     
     if (isNaN(planId)) {
       await this.botService.sendMessage(chatId, '❌ آیدی پلن نامعتبر است.');
