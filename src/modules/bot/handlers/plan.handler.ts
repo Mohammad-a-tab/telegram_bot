@@ -281,6 +281,9 @@ export class PlanHandler {
       }
       data.bandwidth_value = bandwidthValue;
       state.step = 6;
+      state.data = data;  // مهم: ذخیره مجدد state
+      
+      console.log('✅ bandwidth_value saved in state:', bandwidthValue);
       
       const unitKeyboard = {
         reply_markup: {
@@ -296,17 +299,19 @@ export class PlanHandler {
       
       await this.botService.sendMessage(chatId, 
         `📊 **مرحله 6/6:** واحد حجم را انتخاب کنید:\n\n` +
-        `• اگر مقدار 0 وارد کرده‌اید، واحد نامحدود خواهد بود.\n` +
-        `• در غیر این صورت واحد مورد نظر را انتخاب کنید:`,
         unitKeyboard
       );
-
       this.botService.setAdminState(userId, state);
+      return;
     }
   }
 
   async setPlanUnit(chatId: number, userId: number, unit: string) {
     const state = this.botService.getAdminState(userId);
+    
+    console.log('🔍 setPlanUnit called with unit:', unit);
+    console.log('🔍 Current state:', state);
+    
     if (!state || state.action !== 'add_plan') {
       await this.botService.sendMessage(chatId, '❌ خطا: مرحله افزودن پلن فعال نیست.');
       return;
@@ -315,8 +320,9 @@ export class PlanHandler {
     const data = state.data || {};
     const bandwidthValue = data.bandwidth_value;
     
-    // بررسی اینکه مقدار حجم وجود داره
-    if (bandwidthValue === undefined || isNaN(bandwidthValue)) {
+    console.log('🔍 bandwidth_value in state:', bandwidthValue);
+    
+    if (bandwidthValue === undefined || bandwidthValue === null || isNaN(bandwidthValue)) {
       await this.botService.sendMessage(chatId, '❌ خطا: مقدار حجم نامعتبر است. لطفاً مراحل را دوباره طی کنید.');
       this.botService.clearAdminState(userId);
       return;
@@ -326,10 +332,11 @@ export class PlanHandler {
     data.is_active = true;
     data.stock = 0;
     
+    console.log('🔍 Final data to save:', data);
+    
     try {
       const newPlan = await this.botService.planAdmin.createPlan(data);
       
-      // نمایش نتیجه
       let volumeDisplay = '';
       if (bandwidthValue === 0) {
         volumeDisplay = 'نامحدود';
