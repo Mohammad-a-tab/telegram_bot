@@ -73,7 +73,7 @@ export class BotService {
       const adminGroupId = process.env.ADMIN_GROUP_ID;
       if (adminGroupId) {
         await this.stockChecker.startChecking(this.bot, adminGroupId);
-        await this.pendingOrderChecker.startChecking(this.bot, adminGroupId);
+        // await this.pendingOrderChecker.startChecking(this.bot, adminGroupId);
       }
       
       console.log('✅ Telegram bot started!');
