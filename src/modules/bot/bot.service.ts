@@ -23,16 +23,7 @@ import { DiscountHandler } from './handlers/discount.handler';
 import { ServiceHandler } from './handlers/service.handler';
 import { CallbackHandler } from './handlers/callback.handler';
 import { getMainKeyboard } from './keyboards/main.keyboard';
-import {
-  adminMainKeyboard,
-  plansManagementKeyboard,
-  subsManagementKeyboard,
-  configsManagementKeyboard,
-  ordersManagementKeyboard,
-  discountManagementKeyboard,
-  planListKeyboard,
-  planActionKeyboard
-} from './keyboards/admin.keyboard';
+import { convert } from 'telegram-markdown-v2';
 
 const TelegramBot = require('node-telegram-bot-api');
 
@@ -178,52 +169,37 @@ export class BotService {
 
   async sendMessage(chatId: number, text: string, options?: any) {
     try {
-      if (!text || text.trim() === '') {
-        console.warn('⚠️ Attempted to send empty message');
-        return null;
-      }
-  
-      let finalOptions = { ...options };
-      
-      if (options?.parse_mode === 'Markdown') {
-        const safeText = this.escapeMarkdown(text);
-        finalOptions = { ...options, text: safeText };
-        return await this.bot.sendMessage(chatId, safeText, finalOptions);
-      }
-      
-      if (options?.parse_mode === 'HTML') {
-        return await this.bot.sendMessage(chatId, text, finalOptions);
-      }
-      
-      return await this.bot.sendMessage(chatId, text, finalOptions);
-      
-    } catch (error) {
-      console.error('SendMessage error:', error.message);
+        if (!text || text.trim() === '') {
+            console.warn('⚠️ متن ارسالی خالی است');
+            return null;
+        }
 
-      try {
-        const { parse_mode, ...restOptions } = options || {};
-        return await this.bot.sendMessage(chatId, text, restOptions);
-      } catch (fallbackError) {
-        console.error('Fallback sendMessage also failed:', fallbackError.message);
-        return null;
-      }
+        let finalOptions = { ...options };
+        
+        if (options?.parse_mode === 'MarkdownV2') {
+            // تبدیل خودکار و ایمن Markdown به فرمت استاندارد تلگرام
+            const safeText = convert(text, 'escape');
+            finalOptions = { ...options, text: safeText };
+            return await this.bot.sendMessage(chatId, safeText, finalOptions);
+        }
+        
+        if (options?.parse_mode === 'HTML') {
+            return await this.bot.sendMessage(chatId, text, finalOptions);
+        }
+        
+        return await this.bot.sendMessage(chatId, text, finalOptions);
+        
+    } catch (error) {
+        console.error('خطا در ارسال پیام:', error.message);
+        try {
+            const { parse_mode, ...restOptions } = options || {};
+            return await this.bot.sendMessage(chatId, text, restOptions);
+        } catch (fallbackError) {
+            console.error('خطا در ارسال مجدد پیام:', fallbackError.message);
+            return null;
+        }
     }
-  }
-  
-  private escapeMarkdown(text: string): string {
-    const charsToEscape = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
-    
-    let result = '';
-    for (let i = 0; i < text.length; i++) {
-      const char = text[i];
-      if (charsToEscape.includes(char) && (i === 0 || text[i-1] !== '\\') && char !== '\n') {
-        result += '\\' + char;
-      } else {
-        result += char;
-      }
-    }
-    return result;
-  }
+}
   
   async answerCallback(id: string) {
     try { 
