@@ -427,6 +427,7 @@ export class OrderHandler {
         }
       });
       
+      this.botService.pendingOrderChecker.removeReportedOrder(orderId);
       await this.botService.sendMessage(adminChatId, `✅ سفارش #${order.id} تایید شد.`);
       
     } catch (error) {
@@ -475,7 +476,7 @@ export class OrderHandler {
       await this.botService.cache.del(`pending_order_${order.user_id}`);
       await this.botService.sendMessage(order.user_id, '❌ متأسفانه سفارش شما تایید نشد. لطفاً با پشتیبانی تماس بگیرید.');
       await this.botService.sendMessage(adminChatId, `✅ سفارش #${order.id} رد شد.`);
-      
+      this.botService.pendingOrderChecker.removeReportedOrder(orderId);
     } catch (error) {
       await queryRunner.rollbackTransaction();
       console.error('Error rejecting order:', error);

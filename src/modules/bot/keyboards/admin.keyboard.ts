@@ -67,7 +67,6 @@ export const ordersManagementKeyboard = {
       [{ text: '⏳ سفارشات در انتظار', callback_data: 'admin_pending_orders' }],
       [{ text: '✅ سفارشات تایید شده', callback_data: 'admin_approved_orders' }],
       [{ text: '❌ سفارشات رد شده', callback_data: 'admin_rejected_orders' }],
-      [{ text: '📸 مشاهده فیش پرداخت', callback_data: 'admin_view_receipt' }],
       [{ text: '🔙 بازگشت به منوی اصلی', callback_data: 'admin_menu' }]
     ]
   }

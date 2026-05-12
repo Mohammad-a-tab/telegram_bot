@@ -24,6 +24,7 @@ import { ServiceHandler } from './handlers/service.handler';
 import { CallbackHandler } from './handlers/callback.handler';
 import { getMainKeyboard } from './keyboards/main.keyboard';
 import { convert } from 'telegram-markdown-v2';
+import { PendingOrderCheckerService } from '../order/pending-order.checker.service';
 
 const TelegramBot = require('node-telegram-bot-api');
 
@@ -52,6 +53,7 @@ export class BotService {
     public stock: StockService,
     public sub: SubService,
     public stockChecker: StockCheckerService,
+    public pendingOrderChecker: PendingOrderCheckerService,
   ) {
     this.messageHelper = new MessageHelper();
     this.planHandler = new PlanHandler(this);
@@ -61,6 +63,7 @@ export class BotService {
     this.discountHandler = new DiscountHandler(this);
     this.serviceHandler = new ServiceHandler(this);
     this.subHandler = new SubHandler(this);
+    this.pendingOrderChecker = new PendingOrderCheckerService(orderRepo, cache);
   }
 
   async init(token: string) {
@@ -71,6 +74,7 @@ export class BotService {
       const adminGroupId = process.env.ADMIN_GROUP_ID;
       if (adminGroupId) {
         await this.stockChecker.startChecking(this.bot, adminGroupId);
+        await this.pendingOrderChecker.startChecking(this.bot, adminGroupId);
       }
       
       console.log('✅ Telegram bot started!');
