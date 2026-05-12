@@ -6,7 +6,7 @@ import { CacheService } from '../cache/cache.service';
 
 @Injectable()
 export class PendingOrderCheckerService {
-  private readonly CHECK_INTERVAL = 60 * 1000; // 1 دقیقه
+  private readonly CHECK_INTERVAL = 5 * 60 * 1000; // 5 دقیقه
   private reportedOrderIds: Set<number> = new Set();
 
   constructor(
