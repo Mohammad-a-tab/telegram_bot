@@ -211,10 +211,20 @@ export class BotService {
   }
   
   private escapeMarkdown(text: string): string {
-    const escapePattern = /([_*[\]()~`>#+\-=|{}.!])/g;
-    return text.replace(escapePattern, '\\$1');
+    const charsToEscape = ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!'];
+    
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (charsToEscape.includes(char) && (i === 0 || text[i-1] !== '\\')) {
+        result += '\\' + char;
+      } else {
+        result += char;
+      }
+    }
+    return result;
   }
-
+  
   async answerCallback(id: string) {
     try { 
       await this.bot.answerCallbackQuery(id); 
