@@ -81,7 +81,7 @@ export class OrderHandler {
       const adminMessage = 
         `🆕 سفارش جدید!\n\n` +
         `👤 کاربر: ${username}\n` +
-        `🆔 آیدی: <cod${userId}\n` +
+        `🆔 آیدی: ${userId}\n` +
         `📦 پلن: ${plan.name}\n` +
         `💰 مبلغ: ${savedOrder.amount.toLocaleString()} تومان\n` +
         `🆔 شماره سفارش: #${savedOrder.id}\n` +
