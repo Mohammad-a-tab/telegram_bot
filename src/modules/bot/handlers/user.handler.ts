@@ -15,9 +15,10 @@ export class UserHandler {
     await this.botService.sendMessage(chatId, message, keyboard);
   }
 
-  async showPlans(chatId: number, userId: number) {
+  async showPlans(chatId: number, userId: number, username?: string, firstName?: string, lastName?: string) {
     if (!await this.botService.ensureMembership(userId, chatId)) return;
-    await this.botService.upsertUser(userId);
+
+    await this.botService.upsertUser(userId, username, firstName, lastName);
   
     let plans = await this.botService.cache.getPlans();
     if (!plans) {
@@ -55,8 +56,8 @@ export class UserHandler {
       },
     });
   }
-
-  async selectPlan(chatId: number, userId: number, data: string) {
+  
+  async selectPlan(chatId: number, userId: number, data: string, username?: string, firstName?: string, lastName?: string) {
     const planId = parseInt(data.split('_')[1]);
     const pendingKey = `pending_order_${userId}`;
     const existingPending = await this.botService.cache.get(pendingKey);
@@ -77,6 +78,8 @@ export class UserHandler {
       await this.botService.sendMessage(chatId, '⚠️ متأسفانه این پلن به اتمام رسیده است.');
       return;
     }
+
+    await this.botService.upsertUser(userId, username, firstName, lastName);
     
     this.botService.setAdminState(userId, { action: 'waiting_for_receipt', planId });
     const finalPrice = plan.has_discount && plan.discounted_price ? plan.discounted_price : plan.price;
@@ -85,19 +88,19 @@ export class UserHandler {
     const formatPrice = (price: number) => price.toLocaleString('fa-IR');
   
     const message = 
-    `💳 **اطلاعات پرداخت**\n\n` +
-    `📦 پلن: ${plan.name}\n`+
-    `💰 قیمت اصلی: ${formatPrice(plan.price)} تومان\n` +
-    `✅ مبلغ نهایی: ${formatPrice(finalPrice)} تومان\n\n`+
-    `💳 **شماره کارت:**\n` +
-    `<code>${cardNumber}</code>\n\n` +
-    `👤 **صاحب کارت:**\n${cardHolder}\n\n` +
-    `💰 **مبلغ قابل پرداخت:**\n` +
-    `<code>${formatPrice(finalPrice)} تومان</code>\n\n` +
-    `🖼 **پس از پرداخت، تصویر رسید را ارسال کنید.**`;
+      `💳 **اطلاعات پرداخت**\n\n` +
+      `📦 پلن: ${plan.name}\n` +
+      `💰 قیمت اصلی: ${formatPrice(plan.price)} تومان\n` +
+      `✅ مبلغ نهایی: ${formatPrice(finalPrice)} تومان\n\n` +
+      `💳 **شماره کارت:**\n` +
+      `<code>${cardNumber}</code>\n\n` +
+      `👤 **صاحب کارت:**\n${cardHolder}\n\n` +
+      `💰 **مبلغ قابل پرداخت:**\n` +
+      `<code>${formatPrice(finalPrice)} تومان</code>\n\n` +
+      `🖼 **پس از پرداخت، تصویر رسید را ارسال کنید.**`;
     
     await this.botService.sendMessage(chatId, message, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [{ text: '📤 ارسال رسید', callback_data: `send_receipt_${planId}` }],

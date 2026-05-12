@@ -28,7 +28,14 @@ export class CallbackHandler {
     const handlers: Record<string, () => void> = {
       'approve_order_': () => orderHandler.approveOrder(data, chatId, userId).catch(console.error),
       'reject_order_': () => orderHandler.rejectOrder(data, chatId, userId).catch(console.error),
-      'plan_': () => userHandler.selectPlan(chatId, userId, data).catch(console.error),
+      'plan_': () => userHandler.selectPlan(    
+        chatId, 
+        userId, 
+        data,
+        from.username,
+        from.first_name,
+        from.last_name
+      ).catch(console.error),
       'send_receipt_': () => orderHandler.waitForReceipt(chatId, userId, data).catch(console.error),
       'service_detail_': () => serviceHandler.showDetail(chatId, userId, parseInt(data.split('_')[2])).catch(console.error),
       'copy_config_': () => serviceHandler.copyConfigLink(chatId, userId, data.substring(12)).catch(console.error),

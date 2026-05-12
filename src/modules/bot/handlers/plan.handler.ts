@@ -5,6 +5,9 @@ import {
   planListKeyboard, 
   planActionKeyboard 
 } from '../keyboards/admin.keyboard';
+import { Plan } from '../../plan/entities/plan.entity';
+import { Config } from '../../config/entities/config.entity';
+import { DataSource } from 'typeorm';
 
 export class PlanHandler {
   constructor(private readonly botService: BotService) {}
@@ -52,12 +55,39 @@ export class PlanHandler {
 
   async togglePlanStatus(chatId: number, userId: number, data: string) {
     if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
-    const planId = parseInt(data.split('_')[3]);
-    const plan = await this.botService.planAdmin.togglePlanStatus(planId);
-    if (plan) {
+    
+    const parts = data.split('_');
+    const planId = parseInt(parts[parts.length - 1]);
+    
+    const queryRunner = this.botService.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+  
+    try {
+      const plan = await queryRunner.manager.findOne(Plan, {
+        where: { id: planId },
+        lock: { mode: 'pessimistic_write' }
+      });
+      
+      if (!plan) {
+        await queryRunner.rollbackTransaction();
+        await this.botService.sendMessage(chatId, '❌ پلن یافت نشد.');
+        return;
+      }
+      
+      plan.is_active = !plan.is_active;
+      await queryRunner.manager.save(plan);
+      await queryRunner.commitTransaction();
+      
+      await this.botService.cache.invalidatePlans();
       await this.botService.sendMessage(chatId, `✅ وضعیت پلن "${plan.name}" تغییر کرد.`);
-    } else {
-      await this.botService.sendMessage(chatId, '❌ پلن یافت نشد.');
+      
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      console.error('Error toggling plan status:', error);
+      await this.botService.sendMessage(chatId, '❌ خطا در تغییر وضعیت پلن.');
+    } finally {
+      await queryRunner.release();
     }
   }
 
@@ -72,30 +102,50 @@ export class PlanHandler {
       return;
     }
     
-    const plan = await this.botService.planRepo.findOne({ 
-      where: { id: planId },
-      relations: ['configs']
-    });
-    
-    if (!plan) {
-      await this.botService.sendMessage(chatId, '❌ پلن یافت نشد.');
-      return;
+    const queryRunner = this.botService.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+  
+    try {
+      const plan = await queryRunner.manager.findOne(Plan, {
+        where: { id: planId },
+        lock: { mode: 'pessimistic_write' }
+      });
+      
+      if (!plan) {
+        await queryRunner.rollbackTransaction();
+        await this.botService.sendMessage(chatId, '❌ پلن یافت نشد.');
+        return;
+      }
+  
+      const configCount = await queryRunner.manager.count(Config, {
+        where: { plan_id: planId }
+      });
+      
+      if (configCount > 0) {
+        await queryRunner.rollbackTransaction();
+        await this.botService.sendMessage(chatId, 
+          `❌ نمی‌توانید این پلن را حذف کنید.\n\n` +
+          `📦 پلن: ${plan.name}\n` +
+          `📊 تعداد کانفیگ‌های این پلن: ${configCount} عدد\n\n` +
+          `⚠️ ابتدا تمام کانفیگ‌های این پلن را حذف کنید، سپس پلن را حذف نمایید.`
+        );
+        return;
+      }
+  
+      await queryRunner.manager.delete(Plan, planId);
+      await queryRunner.commitTransaction();
+      
+      await this.botService.cache.invalidatePlans();
+      await this.botService.sendMessage(chatId, '✅ پلن با موفقیت حذف شد.');
+      
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      console.error('Error deleting plan:', error);
+      await this.botService.sendMessage(chatId, '❌ خطا در حذف پلن.');
+    } finally {
+      await queryRunner.release();
     }
-
-    const configCount = await this.botService.configRepo.count({ where: { plan_id: planId } });
-    
-    if (configCount > 0) {
-      await this.botService.sendMessage(chatId, 
-        `❌ نمی‌توانید این پلن را حذف کنید.\n\n` +
-        `📦 پلن: ${plan.name}\n` +
-        `📊 تعداد کانفیگ‌های این پلن: ${configCount} عدد\n\n` +
-        `⚠️ ابتدا تمام کانفیگ‌های این پلن را حذف کنید، سپس پلن را حذف نمایید.`
-      );
-      return;
-    }
-
-    const success = await this.botService.planAdmin.deletePlan(planId);
-    await this.botService.sendMessage(chatId, success ? '✅ پلن با موفقیت حذف شد.' : '❌ خطا در حذف پلن.');
   }
 
   async startAddPlan(chatId: number, userId: number) {
@@ -196,8 +246,8 @@ export class PlanHandler {
       await this.botService.sendMessage(chatId, '💰 قیمت پلن را به تومان وارد کنید:');
     } else if (step === 3) {
       const price = parseInt(text);
-      if (isNaN(price)) {
-        await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر وارد کنید.');
+      if (isNaN(price) || price <= 0) {
+        await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر (بزرگتر از صفر) وارد کنید.');
         return;
       }
       data.price = price;
@@ -205,8 +255,8 @@ export class PlanHandler {
       await this.botService.sendMessage(chatId, '⏱ مدت اعتبار را به روز وارد کنید:');
     } else if (step === 4) {
       const days = parseInt(text);
-      if (isNaN(days)) {
-        await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر وارد کنید.');
+      if (isNaN(days) || days <= 0) {
+        await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر (بزرگتر از صفر) وارد کنید.');
         return;
       }
       data.duration_days = days;
@@ -214,8 +264,8 @@ export class PlanHandler {
       await this.botService.sendMessage(chatId, '📊 حجم ترافیک را به گیگابایت وارد کنید (0 = نامحدود):');
     } else if (step === 5) {
       const bandwidth = parseInt(text);
-      if (isNaN(bandwidth)) {
-        await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر وارد کنید.');
+      if (isNaN(bandwidth) || bandwidth < 0) {
+        await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر (بزرگتر یا مساوی صفر) وارد کنید.');
         return;
       }
       data.bandwidth_gb = bandwidth;
@@ -258,8 +308,8 @@ export class PlanHandler {
         
         if (['price', 'duration_days', 'bandwidth_gb'].includes(state.editField)) {
           value = parseInt(text);
-          if (isNaN(value)) {
-            await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر وارد کنید.');
+          if (isNaN(value) || value < 0) {
+            await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر (بزرگتر یا مساوی صفر) وارد کنید.');
             return;
           }
         }

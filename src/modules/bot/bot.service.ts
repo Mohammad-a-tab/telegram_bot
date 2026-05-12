@@ -23,6 +23,16 @@ import { DiscountHandler } from './handlers/discount.handler';
 import { ServiceHandler } from './handlers/service.handler';
 import { CallbackHandler } from './handlers/callback.handler';
 import { getMainKeyboard } from './keyboards/main.keyboard';
+import {
+  adminMainKeyboard,
+  plansManagementKeyboard,
+  subsManagementKeyboard,
+  configsManagementKeyboard,
+  ordersManagementKeyboard,
+  discountManagementKeyboard,
+  planListKeyboard,
+  planActionKeyboard
+} from './keyboards/admin.keyboard';
 
 const TelegramBot = require('node-telegram-bot-api');
 
@@ -95,12 +105,18 @@ export class BotService {
   private setupHandlers() {
     try {
       this.bot.onText(/\/start/, (m) => this.userHandler.handleStart(m.chat.id, m.from.id, m.chat.first_name || 'کاربر'));
-      this.bot.onText(/🛒 خرید VPN/, (m) => this.userHandler.showPlans(m.chat.id, m.from.id));
+      this.bot.onText(/🛒 خرید VPN/, (m) => this.userHandler.showPlans(
+        m.chat.id, 
+        m.from.id, 
+        m.from.username, 
+        m.from.first_name, 
+        m.from.last_name
+      ));
       this.bot.onText(/🛍️ سرویس‌های من/, (m) => this.userHandler.showUserServices(m.chat.id, m.from.id));
       this.bot.onText(/💬 پشتیبانی/, (m) => this.userHandler.handleSupport(m.chat.id));
       this.bot.onText(/🔧 نحوه اتصال/, (m) => this.userHandler.handleHowToConnect(m.chat.id));
       this.bot.onText(/🛠 پنل مدیریت/, (m) => this.planHandler.showPanel(m.chat.id, m.from.id));
-      this.bot.onText(/\/add_config\s+(\d+)\s+(.+)/, (m) => this.configHandler.handleAddConfig(m.chat.id, m.from.id, m.text));
+      this.bot.onText(/\/add_config\s+(\d+)\s+(.+)/, (m, match) => this.configHandler.handleAddConfig(m.chat.id, m.from.id, m.text));
       this.bot.onText(/\/add_sub (.+)/, (m, match) => this.subHandler.addSub(m.chat.id, m.from.id, match[1]));
       this.bot.onText(/\/list_subs/, (m) => this.subHandler.showSub(m.chat.id, m.from.id));
       this.bot.onText(/\/check_stock/, (m) => this.stockChecker.checkAndNotify(this.bot, m.chat.id.toString()));
@@ -230,11 +246,32 @@ export class BotService {
     }
   }
 
-  async upsertUser(userId: number) {
+  async upsertUser(userId: number, username?: string, firstName?: string, lastName?: string) {
     try {
-      const exists = await this.userRepo.findOne({ where: { id: userId } });
-      if (!exists) {
-        await this.userRepo.save({ id: userId, status: true });
+      const existingUser = await this.userRepo.findOne({ where: { id: userId } });
+      
+      if (!existingUser) {
+        const newUser = this.userRepo.create({
+          id: userId,
+          username: username || null,
+          first_name: firstName || null,
+          last_name: lastName || null,
+          status: true,
+          is_member_of_channel: false,
+        });
+        await this.userRepo.save(newUser);
+        console.log(`✅ New user created: ${userId} (${firstName || 'no name'})`);
+      } else {
+        if (username && existingUser.username !== username) {
+          existingUser.username = username;
+        }
+        if (firstName && existingUser.first_name !== firstName) {
+          existingUser.first_name = firstName;
+        }
+        if (lastName && existingUser.last_name !== lastName) {
+          existingUser.last_name = lastName;
+        }
+        await this.userRepo.save(existingUser);
       }
     } catch (error) {
       console.error('Error upserting user:', error.message);

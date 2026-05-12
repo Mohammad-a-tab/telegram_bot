@@ -202,15 +202,12 @@ export class StockService {
         lock: { mode: 'pessimistic_write' }
       });
       
-      if (plan) {
-        const currentStock = plan.stock || 0;
-        if (currentStock <= 0) {
-          await queryRunner.rollbackTransaction();
-          return null;
-        }
-        plan.stock = currentStock - 1;
+      if (plan && plan.stock > 0) {
+        plan.stock = plan.stock - 1;
         await queryRunner.manager.save(plan);
-        console.log(`📊 موجودی پلن ${planId} به ${plan.stock} کاهش یافت`);
+      } else if (plan && plan.stock === 0) {
+        await queryRunner.rollbackTransaction();
+        return null;
       }
   
       await queryRunner.commitTransaction();
