@@ -216,7 +216,7 @@ export class BotService {
     let result = '';
     for (let i = 0; i < text.length; i++) {
       const char = text[i];
-      if (charsToEscape.includes(char) && (i === 0 || text[i-1] !== '\\')) {
+      if (charsToEscape.includes(char) && (i === 0 || text[i-1] !== '\\') && char !== '\n') {
         result += '\\' + char;
       } else {
         result += char;
