@@ -64,7 +64,7 @@ export class UserHandler {
     });
   
     await this.botService.sendMessage(chatId, headerMessage, {
-      parse_mode: 'HTML',
+      parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: planButtons,
       },
@@ -178,7 +178,7 @@ export class UserHandler {
       `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
       `✨ ما همیشه کنار شما هستیم ✨`;
   
-      await this.botService.sendMessage(chatId, message, { parse_mode: 'HTML' });
+      await this.botService.sendMessage(chatId, message, { parse_mode: 'Markdown' });
   }
 
   async handleHowToConnect(chatId: number) {

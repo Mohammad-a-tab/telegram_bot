@@ -90,7 +90,7 @@ export class OrderHandler {
       if (adminGroupId) {
         const sentMessage = await this.botService.bot.sendPhoto(adminGroupId, photo.file_id, {
           caption: adminMessage,
-          parse_mode: 'HTML',
+          parse_mode: 'Markdown',
           reply_markup: {
             inline_keyboard: [[
               { text: '✅ تایید سفارش', callback_data: `approve_order_${savedOrder.id}` },
@@ -220,7 +220,7 @@ export class OrderHandler {
         `📌 برای کپی کردن، روی لینک کلیک کنید.`;
       
       await this.botService.sendMessage(order.user_id, message, {
-        parse_mode: 'HTML',
+        parse_mode: 'Markdown',
         reply_markup: {
           inline_keyboard: [
             [{ text: '🔧 نحوه اتصال', callback_data: 'how_to_connect' }],
@@ -311,7 +311,7 @@ export class OrderHandler {
       `📌 برای کپی کردن، روی لینک کلیک کنید.`;
     
     await this.botService.sendMessage(chatId, message, {
-      parse_mode: 'HTML',
+      parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           [{ text: '🔧 نحوه اتصال', callback_data: 'how_to_connect' }],
