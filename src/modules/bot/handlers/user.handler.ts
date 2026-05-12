@@ -99,7 +99,7 @@ export class UserHandler {
     const finalPrice = plan.has_discount && plan.discounted_price ? plan.discounted_price : plan.price;
     const cardNumber = process.env.CARD_NUMBER || '**********';
     const cardHolder = 'نرگس کارگران';
-    const formatPrice = (price: number) => (price * 1000).toLocaleString('fa-IR');
+    const formatPrice = (price: number) => (price * 1000).toLocaleString('en-US');
   
     const message = 
     `💳 اطلاعات پرداخت\n\n` +
@@ -107,11 +107,10 @@ export class UserHandler {
     `💰 قیمت اصلی: ${formatPrice(plan.price)} تومان\n` +
     `✅ مبلغ نهایی: ${formatPrice(finalPrice)} تومان\n\n` +
     `💳 شماره کارت:\n` +
-    `*${cardNumber}*\n\n` +
+    `${cardNumber}\n\n` +
     `👤 صاحب کارت:\n${cardHolder}\n\n` +
     `💰 مبلغ قابل پرداخت:\n` +
     `${formatPrice(finalPrice)} تومان\n\n` +
-    `━━━━━━━━━━━━━━━━━━━━━━\n` +
     `🖼 **پس از پرداخت، تصویر رسید را ارسال کنید.**`;
 
     const sentMessage = await this.botService.sendMessage(chatId, message, {
