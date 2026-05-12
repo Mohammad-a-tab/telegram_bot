@@ -15,6 +15,7 @@ import { SubService } from '../sub/sub.service';
 import { StockCheckerService } from '../stock/stock.checker.service';
 import { Sub } from '../sub/entities/sub.entity';
 import { SubModule } from '../sub/sub.module';
+import { PendingOrderCheckerService } from '../order/pending-order.checker.service';
 
 @Module({
   imports: [
@@ -30,7 +31,8 @@ import { SubModule } from '../sub/sub.module';
     PlanAdminService,
     StockService,
     SubService,
-    StockCheckerService
+    StockCheckerService,
+    PendingOrderCheckerService
   ],
   exports: [BotService],
 })
