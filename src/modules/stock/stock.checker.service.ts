@@ -73,6 +73,7 @@ export class StockCheckerService {
       where: { plan_id: planId, is_sold_out: true },
     });
     
-    return plan.stock - soldConfigs;
+    const result = plan.stock - soldConfigs;
+    return result < 0 ? 0 : result;
   }
 }
