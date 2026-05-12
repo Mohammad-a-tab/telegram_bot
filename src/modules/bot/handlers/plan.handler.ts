@@ -7,7 +7,6 @@ import {
 } from '../keyboards/admin.keyboard';
 import { Plan } from '../../plan/entities/plan.entity';
 import { Config } from '../../config/entities/config.entity';
-import { DataSource } from 'typeorm';
 
 export class PlanHandler {
   constructor(private readonly botService: BotService) {}
@@ -152,7 +151,9 @@ export class PlanHandler {
     if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
     this.botService.setAdminState(userId, { action: 'add_plan', step: 1, data: {} });
     await this.botService.sendMessage(chatId, 
-      `➕ **افزودن پلن جدید**\n\n📝 نام پلن را وارد کنید:\n🔄 برای لغو: /cancel`,
+      `➕ **افزودن پلن جدید**\n\n` +
+      `📝 **مرحله 1/6:** نام پلن را وارد کنید:\n` +
+      `🔄 برای لغو: /cancel`,
       { parse_mode: 'Markdown' }
     );
   }
@@ -191,10 +192,16 @@ export class PlanHandler {
     
     this.botService.setAdminState(userId, { action: 'edit_plan', step: 1, planId, data: {} });
     
+    const unitText = plan.bandwidth_unit === 'GB' ? 'گیگابایت' : 'مگابایت';
+    
     await this.botService.sendMessage(chatId, 
       `✏️ **ویرایش پلن: ${plan.name}**\n\n` +
-      `1️⃣ نام\n2️⃣ توضیحات\n3️⃣ قیمت (${plan.price.toLocaleString()} تومان)\n` +
-      `4️⃣ مدت (${plan.duration_days} روز)\n5️⃣ حجم (${plan.bandwidth_gb} گیگابایت)\n\n` +
+      `1️⃣ نام (${plan.name})\n` +
+      `2️⃣ توضیحات\n` +
+      `3️⃣ قیمت (${plan.price.toLocaleString()} تومان)\n` +
+      `4️⃣ مدت (${plan.duration_days} روز)\n` +
+      `5️⃣ مقدار حجم (${plan.bandwidth_value} ${unitText})\n` +
+      `6️⃣ واحد حجم (${unitText})\n\n` +
       `لطفاً شماره مورد نظر را وارد کنید:`,
       { parse_mode: 'Markdown' }
     );
@@ -239,11 +246,11 @@ export class PlanHandler {
     if (step === 1) {
       data.name = text;
       state.step = 2;
-      await this.botService.sendMessage(chatId, '📝 توضیحات پلن را وارد کنید:');
+      await this.botService.sendMessage(chatId, '📝 **مرحله 2/6:** توضیحات پلن را وارد کنید:');
     } else if (step === 2) {
       data.description = text;
       state.step = 3;
-      await this.botService.sendMessage(chatId, '💰 قیمت پلن را به تومان وارد کنید:');
+      await this.botService.sendMessage(chatId, '💰 **مرحله 3/6:** قیمت پلن را به تومان وارد کنید:');
     } else if (step === 3) {
       const price = parseInt(text);
       if (isNaN(price) || price <= 0) {
@@ -252,7 +259,7 @@ export class PlanHandler {
       }
       data.price = price;
       state.step = 4;
-      await this.botService.sendMessage(chatId, '⏱ مدت اعتبار را به روز وارد کنید:');
+      await this.botService.sendMessage(chatId, '⏱ **مرحله 4/6:** مدت اعتبار را به روز وارد کنید:');
     } else if (step === 4) {
       const days = parseInt(text);
       if (isNaN(days) || days <= 0) {
@@ -261,32 +268,76 @@ export class PlanHandler {
       }
       data.duration_days = days;
       state.step = 5;
-      await this.botService.sendMessage(chatId, '📊 حجم ترافیک را به گیگابایت وارد کنید (0 = نامحدود):');
+      await this.botService.sendMessage(chatId, 
+        `📊 **مرحله 5/6:** حجم ترافیک را وارد کنید:\n\n` +
+        `لطفاً مقدار عددی را وارد کنید (مثال: 50):`,
+        { parse_mode: 'Markdown' }
+      );
     } else if (step === 5) {
-      const bandwidth = parseInt(text);
-      if (isNaN(bandwidth) || bandwidth < 0) {
+      const bandwidthValue = parseInt(text);
+      if (isNaN(bandwidthValue) || bandwidthValue < 0) {
         await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر (بزرگتر یا مساوی صفر) وارد کنید.');
         return;
       }
-      data.bandwidth_gb = bandwidth;
-      data.is_active = true;
-      data.stock = 0;
+      data.bandwidth_value = bandwidthValue;
+      state.step = 6;
       
-      try {
-        const newPlan = await this.botService.planAdmin.createPlan(data);
-        await this.botService.sendMessage(chatId, 
-          `✅ **پلن با موفقیت ایجاد شد!**\n\n` +
-          `📌 نام: ${newPlan.name}\n` +
-          `💰 قیمت: ${newPlan.price.toLocaleString()} تومان\n` +
-          `⏱ مدت: ${newPlan.duration_days} روز\n` +
-          `📊 حجم: ${newPlan.bandwidth_gb === 0 ? 'نامحدود' : newPlan.bandwidth_gb + ' گیگ'}\n\n` +
-          `🔗 برای فعال کردن این پلن، کانفیگ اضافه کنید:\n/add_config ${newPlan.id} [لینک]`);
-      } catch (error) {
-        await this.botService.sendMessage(chatId, `❌ خطا: ${error.message}`);
-      }
-      this.botService.clearAdminState(userId);
+      const unitKeyboard = {
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: 'گیگابایت (GB)', callback_data: 'plan_unit_gb' },
+              { text: 'مگابایت (MB)', callback_data: 'plan_unit_mb' }
+            ],
+            [{ text: '🔙 بازگشت', callback_data: 'admin_add_plan' }]
+          ]
+        }
+      };
+      
+      await this.botService.sendMessage(chatId, 
+        `📊 **مرحله 6/6:** واحد حجم را انتخاب کنید:\n\n` +
+        `• اگر مقدار 0 وارد کرده‌اید، واحد نامحدود خواهد بود.\n` +
+        `• در غیر این صورت واحد مورد نظر را انتخاب کنید:`,
+        unitKeyboard
+      );
     }
-    this.botService.setAdminState(userId, state);
+  }
+
+  async setPlanUnit(chatId: number, userId: number, unit: string) {
+    const state = this.botService.getAdminState(userId);
+    if (!state || state.action !== 'add_plan') {
+      await this.botService.sendMessage(chatId, '❌ خطا: مرحله افزودن پلن فعال نیست.');
+      return;
+    }
+    
+    const data = state.data || {};
+    data.bandwidth_unit = unit;
+    data.is_active = true;
+    data.stock = 0;
+    
+    try {
+      const newPlan = await this.botService.planAdmin.createPlan(data);
+      
+      const unitText = unit === 'GB' ? 'گیگابایت' : 'مگابایت';
+      const bandwidthDisplay = data.bandwidth_value === 0 
+        ? 'نامحدود' 
+        : `${data.bandwidth_value.toLocaleString()} ${unitText}`;
+      
+      await this.botService.sendMessage(chatId, 
+        `✅ **پلن با موفقیت ایجاد شد!**\n\n` +
+        `📌 نام: ${newPlan.name}\n` +
+        `📝 توضیحات: ${newPlan.description}\n` +
+        `💰 قیمت: ${newPlan.price.toLocaleString()} تومان\n` +
+        `⏱ مدت: ${newPlan.duration_days} روز\n` +
+        `📊 حجم: ${bandwidthDisplay}\n\n` +
+        `🔗 برای فعال کردن این پلن، کانفیگ اضافه کنید:\n` +
+        { parse_mode: 'Markdown' }
+      );
+    } catch (error) {
+      await this.botService.sendMessage(chatId, `❌ خطا: ${error.message}`);
+    }
+    
+    this.botService.clearAdminState(userId);
   }
 
   async processEditPlan(chatId: number, userId: number, text: string, state: any) {
@@ -295,21 +346,40 @@ export class PlanHandler {
       
       if (step === 1) {
         const fieldNum = parseInt(text);
-        if (isNaN(fieldNum) || fieldNum < 1 || fieldNum > 5) {
-          await this.botService.sendMessage(chatId, '❌ لطفاً یک شماره معتبر (1 تا 5) وارد کنید.');
+        if (isNaN(fieldNum) || fieldNum < 1 || fieldNum > 6) {
+          await this.botService.sendMessage(chatId, '❌ لطفاً یک شماره معتبر (1 تا 6) وارد کنید.');
           return;
         }
-        const fields = ['name', 'description', 'price', 'duration_days', 'bandwidth_gb'];
+        const fields = ['name', 'description', 'price', 'duration_days', 'bandwidth_value', 'bandwidth_unit'];
         state.editField = fields[fieldNum - 1];
+        
+        if (state.editField === 'bandwidth_unit') {
+          // نمایش کیبورد انتخاب واحد
+          const unitKeyboard = {
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  { text: 'گیگابایت (GB)', callback_data: `edit_unit_gb_${state.planId}` },
+                  { text: 'مگابایت (MB)', callback_data: `edit_unit_mb_${state.planId}` }
+                ],
+                [{ text: '🔙 بازگشت', callback_data: 'admin_edit_plan' }]
+              ]
+            }
+          };
+          await this.botService.sendMessage(chatId, 'لطفاً واحد حجم مورد نظر را انتخاب کنید:', unitKeyboard);
+          this.botService.clearAdminState(userId);
+          return;
+        }
+        
         state.step = 2;
         await this.botService.sendMessage(chatId, `لطفاً مقدار جدید برای ${state.editField} را وارد کنید:`);
       } else if (step === 2) {
         let value: any = text;
         
-        if (['price', 'duration_days', 'bandwidth_gb'].includes(state.editField)) {
+        if (['price', 'duration_days', 'bandwidth_value'].includes(state.editField)) {
           value = parseInt(text);
           if (isNaN(value) || value < 0) {
-            await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر (بزرگتر یا مساوی صفر) وارد کنید.');
+            await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر وارد کنید.');
             return;
           }
         }
@@ -349,5 +419,19 @@ export class PlanHandler {
       parse_mode: 'Markdown',
       reply_markup: { inline_keyboard: [...planButtons, [{ text: '🔙 بازگشت', callback_data: 'admin_menu' }]] }
     });
+  }
+
+  async editPlanUnit(chatId: number, userId: number, unit: string, planId: number) {
+    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
+    
+    const updateData = { bandwidth_unit: unit };
+    const updatedPlan = await this.botService.planAdmin.updatePlan(planId, updateData);
+    
+    if (updatedPlan) {
+      const unitText = unit === 'GB' ? 'گیگابایت' : 'مگابایت';
+      await this.botService.sendMessage(chatId, `✅ واحد حجم با موفقیت به "${unitText}" تغییر یافت.`);
+    } else {
+      await this.botService.sendMessage(chatId, '❌ خطا در ویرایش واحد حجم.');
+    }
   }
 }

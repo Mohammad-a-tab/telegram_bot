@@ -1,18 +1,32 @@
 import { BotService } from '../bot.service';
-import { getMainKeyboard, getPlanKeyboard } from '../keyboards/main.keyboard';
+import { getMainKeyboard } from '../keyboards/main.keyboard';
 
 export class UserHandler {
   constructor(private readonly botService: BotService) {}
 
-  async handleStart(chatId: number, userId: number, firstName: string) {
+  async handleStart(chatId: number, userId: number, firstName: string, lastName?: string) {
     const isMember = await this.botService.ensureMembership(userId, chatId);
     if (!isMember) return;
   
     const isAdmin = await this.botService.adminMiddleware.isAdmin(userId);
     const keyboard = getMainKeyboard(isAdmin);
     
-    const message = `👋 سلام ${firstName}!\n\n🎉 به ربات ما خوش آمدید!\n\n🔐 شما میتوانید از ما VPN با قیمت مناسب و کیفیت بالا تهیه کنید.`;
-    await this.botService.sendMessage(chatId, message, keyboard);
+    const fullName = lastName ? `${firstName} ${lastName}` : firstName;
+    
+    const message = 
+      `👋 سلام **${fullName}**\n\n` +
+      `🎉 به ربات فروش VPN خوش اومدی!\n\n` +
+      `🔐 **ویژگی‌های ما:**\n` +
+      `• پایدار و قابل اعتماد\n` +
+      `• سرعت بالا با سرور اختصاصی\n` +
+      `• پشتیبانی ۲۴ ساعته\n` +
+      `• پلن‌های متنوع و مقرون‌به‌صرفه\n\n` +
+      `🚀 کافیه روی **خرید VPN** کلیک کنی و توی چند ثانیه وصل بشی!`;
+    
+    await this.botService.sendMessage(chatId, message, {
+      parse_mode: 'Markdown',
+      ...keyboard
+    });
   }
 
   async showPlans(chatId: number, userId: number, username?: string, firstName?: string, lastName?: string) {
@@ -84,23 +98,23 @@ export class UserHandler {
     this.botService.setAdminState(userId, { action: 'waiting_for_receipt', planId });
     const finalPrice = plan.has_discount && plan.discounted_price ? plan.discounted_price : plan.price;
     const cardNumber = process.env.CARD_NUMBER || '**********';
-    const cardHolder = process.env.CARD_HOLDER || '**********';
+    const cardHolder = 'نرگس کارگران';
     const formatPrice = (price: number) => price.toLocaleString('fa-IR');
   
     const message = 
-      `💳 **اطلاعات پرداخت**\n\n` +
+      `💳 اطلاعات پرداخت\n\n` +
       `📦 پلن: ${plan.name}\n` +
       `💰 قیمت اصلی: ${formatPrice(plan.price)} تومان\n` +
       `✅ مبلغ نهایی: ${formatPrice(finalPrice)} تومان\n\n` +
-      `💳 **شماره کارت:**\n` +
+      `💳 شماره کارت:\n` +
       `<code>${cardNumber}</code>\n\n` +
-      `👤 **صاحب کارت:**\n${cardHolder}\n\n` +
-      `💰 **مبلغ قابل پرداخت:**\n` +
-      `<code>${formatPrice(finalPrice)} تومان</code>\n\n` +
-      `🖼 **پس از پرداخت، تصویر رسید را ارسال کنید.**`;
-    
+      `👤 صاحب کارت:**\n${cardHolder}\n\n` +
+      `💰 مبلغ قابل پرداخت:\n` +
+      `*${formatPrice(finalPrice)} تومان*\n\n` +
+      `🖼 پس از پرداخت، تصویر رسید را ارسال کنید.`;
+
     const sentMessage = await this.botService.sendMessage(chatId, message, {
-      parse_mode: 'HTML',
+      parse_mode: 'Markdown',
       reply_markup: {
         inline_keyboard: [
           [{ text: '📤 ارسال رسید', callback_data: `send_receipt_${planId}` }],
@@ -168,6 +182,7 @@ export class UserHandler {
   }
 
   async handleHowToConnect(chatId: number) {
-    await this.botService.sendMessage(chatId, this.botService.messageHelper.getConnectionGuide());
+    const guide = this.botService.messageHelper.getConnectionGuide();
+    await this.botService.sendMessage(chatId, guide, { parse_mode: 'Markdown' });
   }
 }

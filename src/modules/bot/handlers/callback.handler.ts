@@ -28,7 +28,7 @@ export class CallbackHandler {
     const handlers: Record<string, () => void> = {
       'approve_order_': () => orderHandler.approveOrder(data, chatId, userId).catch(console.error),
       'reject_order_': () => orderHandler.rejectOrder(data, chatId, userId).catch(console.error),
-      'plan_': () => userHandler.selectPlan(    
+      'plan_': () => userHandler.selectPlan(
         chatId, 
         userId, 
         data,
@@ -80,6 +80,11 @@ export class CallbackHandler {
       'admin_back': () => planHandler.showPanel(chatId, userId),
       'main_menu': () => userHandler.handleStart(chatId, userId, 'کاربر'),
       'back_to_services': () => userHandler.showUserServices(chatId, userId),
+      'plan_unit_gb': () => planHandler.setPlanUnit(chatId, userId, 'GB'),
+      'plan_unit_mb': () => planHandler.setPlanUnit(chatId, userId, 'MB'),
+      'edit_unit_gb_': () => planHandler.editPlanUnit(chatId, userId, 'GB', parseInt(data.split('_')[3])),
+      'edit_unit_mb_': () => planHandler.editPlanUnit(chatId, userId, 'MB', parseInt(data.split('_')[3])),
+      'how_to_connect': () => userHandler.handleHowToConnect(chatId),
     };
 
     for (const [prefix, handler] of Object.entries(handlers)) {

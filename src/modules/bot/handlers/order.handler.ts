@@ -117,6 +117,19 @@ export class OrderHandler {
 
   async waitForReceipt(chatId: number, userId: number, data: string) {
     const planId = parseInt(data.split('_')[2]);
+    const state = this.botService.getAdminState(userId);
+
+    if (state?.messageId) {
+      try {
+        await this.botService.bot.editMessageReplyMarkup(
+          { inline_keyboard: [] },
+          { chat_id: chatId, message_id: state.messageId }
+        );
+      } catch (error) {
+        console.error('Failed to remove send receipt button:', error.message);
+      }
+    }
+    
     this.botService.setAdminState(userId, { action: 'waiting_for_receipt', planId });
     await this.botService.sendMessage(chatId, '🖼 لطفاً تصویر رسید خود را ارسال کنید.');
   }
@@ -203,10 +216,11 @@ export class OrderHandler {
         `📦 پلن: ${plan.name}\n` +
         `💰 مبلغ: ${order.amount.toLocaleString()} تومان\n` +
         `🔗 لینک اشتراک شما:\n` +
-        `\`${finalLink}\``;
+        `<code>${finalLink}</code>\n\n` +
+        `📌 برای کپی کردن، روی لینک کلیک کنید.`;
       
       await this.botService.sendMessage(order.user_id, message, {
-        parse_mode: 'Markdown',
+        parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
             [{ text: '🔧 نحوه اتصال', callback_data: 'how_to_connect' }],
@@ -287,18 +301,17 @@ export class OrderHandler {
     const subLink = await this.botService.sub.getSub();
     const configLink = order.config?.config_link || '';
     const finalLink = `${subLink}${configLink}`;
-    const volumeText = order.plan?.bandwidth_gb && order.plan.bandwidth_gb > 0 ? `${order.plan.bandwidth_gb} GB` : '';
+    const volumeText = `${ order.plan?.bandwidth_value}  ${ order.plan?.bandwidth_unit}` ;
     
     const message = 
       `🔗 لینک اشتراک شما\n\n` +
       `📦 پلن: ${order.plan?.name}\n` +
       `${volumeText ? `📊 حجم: ${volumeText}\n` : ''}` +
-      `⏱ مدت باقی مانده: محاسبه نشده\n\n` +
-      `\`${finalLink}\`\n\n` +
+      `<code>${finalLink}</code>\n\n` +
       `📌 برای کپی کردن، روی لینک کلیک کنید.`;
     
     await this.botService.sendMessage(chatId, message, {
-      parse_mode: 'Markdown',
+      parse_mode: 'HTML',
       reply_markup: {
         inline_keyboard: [
           [{ text: '🔧 نحوه اتصال', callback_data: 'how_to_connect' }],

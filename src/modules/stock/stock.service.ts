@@ -157,26 +157,26 @@ export class StockService {
     return canPurchase;
   }
   
-  async getRemainingStock(planId: number): Promise<number> {    
-    const cached = await this.cacheService.get<number>(`remaining_stock_${planId}`);
-    if (cached !== undefined && cached !== null) {
-      console.log(`📦 برگرداندن از کش: ${cached}`);
-      return cached;
-    }
-  
-    const plan = await this.planRepository.findOne({ where: { id: planId } });
-    if (!plan) return 0;
-    
-    const soldConfigs = await this.configRepository.count({
-      where: { plan_id: planId, is_sold_out: true },
-    });
-    
-    const remaining = (plan.stock || 0) - soldConfigs;
-    console.log(`📊 پلن ${planId}: stock=${plan.stock}, sold=${soldConfigs}, remaining=${remaining}`);
-    
-    await this.cacheService.set(`remaining_stock_${planId}`, remaining, 60);
-    return remaining;
+async getRemainingStock(planId: number): Promise<number> {    
+  const cached = await this.cacheService.get<number>(`remaining_stock_${planId}`);
+  if (cached !== undefined && cached !== null) {
+    console.log(`📦 returning cached: ${cached}`);
+    return cached;
   }
+
+  const plan = await this.planRepository.findOne({ where: { id: planId } });
+  if (!plan) return 0;
+  
+  const soldConfigs = await this.configRepository.count({
+    where: { plan_id: planId, is_sold_out: true },
+  });
+  
+  const remaining = (plan.stock || 0) - soldConfigs;
+  console.log(`📊 Plan ${planId}: stock=${plan.stock}, sold=${soldConfigs}, remaining=${remaining}`);
+  
+  await this.cacheService.set(`remaining_stock_${planId}`, remaining, 60);
+  return remaining;
+}
 
   async reserveConfig(planId: number): Promise<Config | null> {
     const queryRunner = this.dataSource.createQueryRunner();

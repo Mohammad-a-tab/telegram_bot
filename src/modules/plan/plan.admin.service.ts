@@ -34,8 +34,9 @@ export class PlanAdminService {
         discounted_price: data.discounted_price && !isNaN(data.discounted_price) ? data.discounted_price : null,
         has_discount: data.has_discount || false,
         duration_days: data.duration_days && !isNaN(data.duration_days) ? data.duration_days : 0,
-        bandwidth_gb: data.bandwidth_gb && !isNaN(data.bandwidth_gb) ? data.bandwidth_gb : 0,
-        stock: 0,  // موجودی اولیه صفر
+        bandwidth_value: data.bandwidth_value && !isNaN(data.bandwidth_value) ? data.bandwidth_value : 0,
+        bandwidth_unit: data.bandwidth_unit || 'GB',
+        stock: 0,
         is_active: data.is_active !== undefined ? data.is_active : true,
       };
   
@@ -91,12 +92,16 @@ export class PlanAdminService {
         plan.duration_days = days;
       }
       
-      if (data.bandwidth_gb !== undefined) {
-        const bandwidth = parseFloat(data.bandwidth_gb as any);
+      if (data.bandwidth_value !== undefined) {
+        const bandwidth = parseFloat(data.bandwidth_value as any);
         if (isNaN(bandwidth)) {
-          throw new Error('حجم ترافیک وارد شده معتبر نیست');
+          throw new Error('مقدار حجم وارد شده معتبر نیست');
         }
-        plan.bandwidth_gb = bandwidth;
+        plan.bandwidth_value = bandwidth;
+      }
+      
+      if (data.bandwidth_unit !== undefined) {
+        plan.bandwidth_unit = data.bandwidth_unit;
       }
       
       if (data.stock !== undefined) {
@@ -161,6 +166,14 @@ export class PlanAdminService {
     }
   }
 
+  private getBandwidthText(plan: Plan): string {
+    if (plan.bandwidth_value === 0) {
+      return 'نامحدود';
+    }
+    const unit = plan.bandwidth_unit === 'GB' ? 'گیگابایت' : plan.bandwidth_unit === 'MB' ? 'مگابایت' : 'ترابایت';
+    return `${plan.bandwidth_value.toLocaleString()} ${unit}`;
+  }
+
   formatPlanMessage(plan: Plan): string {
     const status = plan.is_active ? '✅ فعال' : '❌ غیرفعال';
     const discount = plan.has_discount && plan.discounted_price 
@@ -171,13 +184,14 @@ export class PlanAdminService {
       : plan.stock === 0 
         ? 'اتمام موجودی' 
         : `${plan.stock} عدد باقی مانده`;
+    const bandwidthText = this.getBandwidthText(plan);
     
     return `📦 **پلن #${plan.id}**\n` +
            `📌 نام: ${plan.name}\n` +
            `📝 توضیحات: ${plan.description}\n` +
            `💰 قیمت اصلی: ${plan.price.toLocaleString()} تومان${discount}\n` +
            `⏱ مدت: ${plan.duration_days} روز\n` +
-           `📊 حجم: ${plan.bandwidth_gb === 0 ? 'نامحدود' : plan.bandwidth_gb + ' گیگابایت'}\n` +
+           `📊 حجم: ${bandwidthText}\n` +
            `📦 موجودی: ${stockText}\n` +
            `📊 وضعیت: ${status}`;
   }

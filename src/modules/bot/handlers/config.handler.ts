@@ -103,7 +103,7 @@ export class ConfigHandler {
   async showConfigsManagement(chatId: number, userId: number) {
     if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
     
-    await this.botService.sendMessage(chatId, '⚙️ **مدیریت کانفیگ‌ها**\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید:', {
+    await this.botService.sendMessage(chatId, '⚙️ مدیریت کانفیگ‌ها\n\nلطفاً یکی از گزینه‌های زیر را انتخاب کنید:', {
       parse_mode: 'Markdown',
       ...configsManagementKeyboard
     });

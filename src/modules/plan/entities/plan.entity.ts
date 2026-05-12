@@ -27,7 +27,10 @@ export class Plan {
   duration_days: number;
 
   @Column({ type: 'int', default: 0 })
-  bandwidth_gb: number;
+  bandwidth_value: number;
+
+  @Column({ type: 'varchar', default: 'GB' })
+  bandwidth_unit: string;
 
   @Column({ type: 'int', nullable: true, default: 0 })
   stock: number;
