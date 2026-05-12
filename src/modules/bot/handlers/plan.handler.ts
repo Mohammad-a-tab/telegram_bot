@@ -270,7 +270,8 @@ export class PlanHandler {
       state.step = 5;
       await this.botService.sendMessage(chatId, 
         `📊 **مرحله 5/6:** حجم ترافیک را وارد کنید:\n\n` +
-        `لطفاً مقدار عددی را وارد کنید (مثال: 50):`,
+        `لطفاً مقدار عددی را وارد کنید (مثال: 50):\n` +
+        `(0 = نامحدود)`,
         { parse_mode: 'Markdown' }
       );
     } else if (step === 5) {
@@ -280,17 +281,18 @@ export class PlanHandler {
         return;
       }
       data.bandwidth_value = bandwidthValue;
+      state.data = data;
       state.step = 6;
-      state.data = data;  // مهم: ذخیره مجدد state
       
-      console.log('✅ bandwidth_value saved in state:', bandwidthValue);
+      // ذخیره state قبل از نمایش کیبورد
+      this.botService.setAdminState(userId, state);
       
       const unitKeyboard = {
         reply_markup: {
           inline_keyboard: [
             [
-              { text: 'گیگابایت (GB)', callback_data: 'plan_unit_gb' },
-              { text: 'مگابایت (MB)', callback_data: 'plan_unit_mb' }
+              { text: 'گیگابایت (GB)', callback_data: `plan_unit_gb_${userId}` },
+              { text: 'مگابایت (MB)', callback_data: `plan_unit_mb_${userId}` }
             ],
             [{ text: '🔙 بازگشت', callback_data: 'admin_add_plan' }]
           ]
@@ -299,17 +301,19 @@ export class PlanHandler {
       
       await this.botService.sendMessage(chatId, 
         `📊 **مرحله 6/6:** واحد حجم را انتخاب کنید:\n\n` +
+        `• مقدار حجم وارد شده: ${bandwidthValue}\n` +
+        `• اگر 0 وارد کرده‌اید، نامحدود خواهد بود.\n` +
+        `• واحد مورد نظر را انتخاب کنید:`,
         unitKeyboard
       );
-      this.botService.setAdminState(userId, state);
-      return;
     }
+    this.botService.setAdminState(userId, state);
   }
 
   async setPlanUnit(chatId: number, userId: number, unit: string) {
-    const state = this.botService.getAdminState(userId);
+    console.log('🔍 setPlanUnit called with unit:', unit, 'userId:', userId);
     
-    console.log('🔍 setPlanUnit called with unit:', unit);
+    const state = this.botService.getAdminState(userId);
     console.log('🔍 Current state:', state);
     
     if (!state || state.action !== 'add_plan') {
@@ -320,7 +324,7 @@ export class PlanHandler {
     const data = state.data || {};
     const bandwidthValue = data.bandwidth_value;
     
-    console.log('🔍 bandwidth_value in state:', bandwidthValue);
+    console.log('🔍 bandwidth_value:', bandwidthValue);
     
     if (bandwidthValue === undefined || bandwidthValue === null || isNaN(bandwidthValue)) {
       await this.botService.sendMessage(chatId, '❌ خطا: مقدار حجم نامعتبر است. لطفاً مراحل را دوباره طی کنید.');
@@ -332,7 +336,7 @@ export class PlanHandler {
     data.is_active = true;
     data.stock = 0;
     
-    console.log('🔍 Final data to save:', data);
+    console.log('🔍 Final data:', data);
     
     try {
       const newPlan = await this.botService.planAdmin.createPlan(data);

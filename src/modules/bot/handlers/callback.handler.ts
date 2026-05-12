@@ -25,6 +25,28 @@ export class CallbackHandler {
     const discountHandler = this.botService.discountHandler;
     const serviceHandler = this.botService.serviceHandler;
 
+    // هندلرهای تکی (برای callback_data هایی که شامل userId هستند)
+    if (data.startsWith('plan_unit_gb_')) {
+      const targetUserId = parseInt(data.split('_')[3]);
+      planHandler.setPlanUnit(chatId, targetUserId, 'GB').catch(console.error);
+      return;
+    }
+    if (data.startsWith('plan_unit_mb_')) {
+      const targetUserId = parseInt(data.split('_')[3]);
+      planHandler.setPlanUnit(chatId, targetUserId, 'MB').catch(console.error);
+      return;
+    }
+    if (data.startsWith('edit_unit_gb_')) {
+      const planId = parseInt(data.split('_')[3]);
+      planHandler.editPlanUnit(chatId, userId, 'GB', planId).catch(console.error);
+      return;
+    }
+    if (data.startsWith('edit_unit_mb_')) {
+      const planId = parseInt(data.split('_')[3]);
+      planHandler.editPlanUnit(chatId, userId, 'MB', planId).catch(console.error);
+      return;
+    }
+
     const handlers: Record<string, () => void> = {
       'approve_order_': () => orderHandler.approveOrder(data, chatId, userId).catch(console.error),
       'reject_order_': () => orderHandler.rejectOrder(data, chatId, userId).catch(console.error),
@@ -80,10 +102,6 @@ export class CallbackHandler {
       'admin_back': () => planHandler.showPanel(chatId, userId),
       'main_menu': () => userHandler.handleStart(chatId, userId, 'کاربر'),
       'back_to_services': () => userHandler.showUserServices(chatId, userId),
-      'plan_unit_gb': () => planHandler.setPlanUnit(chatId, userId, 'GB'),
-      'plan_unit_mb': () => planHandler.setPlanUnit(chatId, userId, 'MB'),
-      'edit_unit_gb_': () => planHandler.editPlanUnit(chatId, userId, 'GB', parseInt(data.split('_')[3])),
-      'edit_unit_mb_': () => planHandler.editPlanUnit(chatId, userId, 'MB', parseInt(data.split('_')[3])),
       'how_to_connect': () => userHandler.handleHowToConnect(chatId),
     };
 
