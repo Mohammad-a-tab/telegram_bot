@@ -103,6 +103,9 @@ export class CallbackHandler {
       'main_menu': () => userHandler.handleStart(chatId, userId, 'کاربر'),
       'back_to_services': () => userHandler.showUserServices(chatId, userId),
       'how_to_connect': () => userHandler.handleHowToConnect(chatId),
+      'admin_view_receipt_': () => orderHandler.viewReceipt(chatId, userId, parseInt(data.split('_')[3])),
+      'admin_approve_order_': () => orderHandler.adminApproveOrder(chatId, userId, parseInt(data.split('_')[3])),
+      'admin_reject_order_': () => orderHandler.adminRejectOrder(chatId, userId, parseInt(data.split('_')[3])),
     };
 
     for (const [prefix, handler] of Object.entries(handlers)) {

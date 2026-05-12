@@ -31,24 +31,15 @@ export class OrderHandler {
 
   private async processReceipt(msg: any, state: any) {
     const queryRunner = this.botService.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-  
+    
     try {
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      console.log('✅ Transaction started');
+  
       const chatId = msg.chat.id;
       const userId = msg.from.id;
       const photo = msg.photo[msg.photo.length - 1];
-      
-      if (state.messageId) {
-        try {
-          await this.botService.bot.editMessageReplyMarkup(
-            { inline_keyboard: [] },
-            { chat_id: chatId, message_id: state.messageId }
-          );
-        } catch (error) {
-          console.error('Failed to remove send receipt button:', error.message);
-        }
-      }
       
       const plan = await queryRunner.manager.findOne(Plan, {
         where: { id: state.planId },
@@ -57,6 +48,7 @@ export class OrderHandler {
       
       if (!plan) {
         await queryRunner.rollbackTransaction();
+        console.log('❌ Plan not found, rolling back');
         await this.botService.sendMessage(chatId, '❌ پلن مورد نظر یافت نشد.');
         this.botService.clearAdminState(userId);
         return;
@@ -71,50 +63,256 @@ export class OrderHandler {
       });
       
       const savedOrder = await queryRunner.manager.save(order);
-      await queryRunner.commitTransaction();
+      console.log('✅ Order saved, id:', savedOrder.id);
       
+      await queryRunner.commitTransaction();
+      console.log('✅ Transaction committed');
+      
+      // بقیه کدها (ارسال به گروه مدیریت، کش، ...) خارج از تراکنش
       await this.botService.cache.set(`pending_order_${userId}`, { orderId: savedOrder.id }, 86400);
       
       const adminGroupId = process.env.ADMIN_GROUP_ID;
       const username = msg.from.username ? `@${msg.from.username}` : `[${msg.from.first_name}](tg://user?id=${userId})`;
       
       const adminMessage = 
-        `🆕 سفارش جدید!\n\n` +
+        `🆕 **سفارش جدید!**\n\n` +
         `👤 کاربر: ${username}\n` +
-        `🆔 آیدی: ${userId}\n` +
+        `🆔 آیدی: <code>${userId}</code>\n` +
         `📦 پلن: ${plan.name}\n` +
         `💰 مبلغ: ${savedOrder.amount.toLocaleString()} تومان\n` +
         `🆔 شماره سفارش: #${savedOrder.id}\n` +
         `📅 تاریخ: ${new Date().toLocaleDateString('fa-IR')}`;
       
       if (adminGroupId) {
-        const sentMessage = await this.botService.bot.sendPhoto(adminGroupId, photo.file_id, {
-          caption: adminMessage,
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: [[
-              { text: '✅ تایید سفارش', callback_data: `approve_order_${savedOrder.id}` },
-              { text: '❌ رد سفارش', callback_data: `reject_order_${savedOrder.id}` }
-            ]]
-          }
-        });
-        
-        savedOrder.admin_message_id = sentMessage.message_id;
-        await this.botService.orderRepo.save(savedOrder);
+        try {
+          const sentMessage = await this.botService.bot.sendPhoto(adminGroupId, photo.file_id, {
+            caption: adminMessage,
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [[
+                { text: '✅ تایید سفارش', callback_data: `approve_order_${savedOrder.id}` },
+                { text: '❌ رد سفارش', callback_data: `reject_order_${savedOrder.id}` }
+              ]]
+            }
+          });
+          
+          savedOrder.admin_message_id = sentMessage.message_id;
+          await this.botService.orderRepo.save(savedOrder);
+        } catch (error) {
+          console.error('Failed to send to admin group:', error.message);
+        }
       }
       
       await this.botService.sendMessage(chatId, `✅ سفارش شما با شماره #${savedOrder.id} ثبت شد. پس از بررسی، نتیجه به شما اطلاع داده می‌شود.`);
       this.botService.clearAdminState(userId);
       
     } catch (error) {
-      await queryRunner.rollbackTransaction();
-      console.error('Error processing receipt:', error);
+      console.error('Error in processReceipt:', error);
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+        console.log('⚠️ Transaction rolled back');
+      }
       await this.botService.sendMessage(msg.chat.id, '❌ خطا در ثبت سفارش. لطفاً دوباره تلاش کنید.');
     } finally {
-      await queryRunner.release();
+      if (!queryRunner.isReleased) {
+        await queryRunner.release();
+        console.log('🔓 QueryRunner released');
+      }
     }
   }
-
+  async listPendingOrdersWithReceipt(chatId: number, userId: number) {
+    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
+    
+    const orders = await this.botService.orderRepo.find({
+      where: { status: 0 },
+      order: { created_at: 'DESC' },
+      relations: ['plan', 'user']
+    });
+    
+    if (!orders.length) {
+      await this.botService.sendMessage(chatId, '⚠️ هیچ سفارش در انتظاری وجود ندارد.');
+      return;
+    }
+    
+    let message = `📋 **سفارشات در انتظار تایید (${orders.length} عدد)**\n\n`;
+    
+    for (const order of orders) {
+      const userDisplay = order.user?.username 
+        ? `@${order.user.username}` 
+        : (order.user?.first_name || order.user_id);
+      
+      message += 
+        `🆔 **سفارش #${order.id}**\n` +
+        `👤 کاربر: ${userDisplay}\n` +
+        `📦 پلن: ${order.plan?.name}\n` +
+        `💰 مبلغ: ${order.amount.toLocaleString()} تومان\n` +
+        `📅 تاریخ: ${new Date(order.created_at).toLocaleDateString('fa-IR')}\n\n`;
+    }
+    
+    // دکمه‌های انتخاب سفارش برای مشاهده فیش
+    const orderButtons = orders.map(order => [
+      { text: `📸 مشاهده فیش سفارش #${order.id}`, callback_data: `admin_view_receipt_${order.id}` }
+    ]);
+    
+    await this.botService.sendMessage(chatId, message, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          ...orderButtons,
+          [{ text: '🔙 بازگشت', callback_data: 'admin_orders_menu' }]
+        ]
+      }
+    });
+  }
+  
+  async viewReceipt(chatId: number, userId: number, orderId: number) {
+    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
+    
+    const order = await this.botService.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['plan', 'user']
+    });
+    
+    if (!order) {
+      await this.botService.sendMessage(chatId, '❌ سفارش یافت نشد.');
+      return;
+    }
+    
+    if (!order.payment_receipt_file_id) {
+      await this.botService.sendMessage(chatId, '❌ این سفارش فیش پرداختی ندارد.');
+      return;
+    }
+    
+    const userDisplay = order.user?.username 
+      ? `@${order.user.username}` 
+      : (order.user?.first_name || order.user_id);
+    
+    const caption = 
+      `🆔 **سفارش #${order.id}**\n` +
+      `👤 کاربر: ${userDisplay}\n` +
+      `📦 پلن: ${order.plan?.name}\n` +
+      `💰 مبلغ: ${order.amount.toLocaleString()} تومان\n` +
+      `📅 تاریخ: ${new Date(order.created_at).toLocaleDateString('fa-IR')}\n\n` +
+      `✅ برای تایید یا رد، از دکمه‌های زیر استفاده کنید.`;
+    
+    await this.botService.bot.sendPhoto(chatId, order.payment_receipt_file_id, {
+      caption: caption,
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: '✅ تایید سفارش', callback_data: `admin_approve_order_${order.id}` },
+            { text: '❌ رد سفارش', callback_data: `admin_reject_order_${order.id}` }
+          ],
+          [{ text: '🔙 بازگشت به لیست', callback_data: 'admin_pending_orders' }]
+        ]
+      }
+    });
+  }
+  
+  async adminApproveOrder(chatId: number, userId: number, orderId: number) {
+    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
+    
+    const order = await this.botService.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['plan']
+    });
+    
+    if (!order) {
+      await this.botService.sendMessage(chatId, '❌ سفارش یافت نشد.');
+      return;
+    }
+    
+    if (order.status !== 0) {
+      await this.botService.sendMessage(chatId, '❌ این سفارش قبلاً بررسی شده است.');
+      return;
+    }
+    
+    // رزرو کانفیگ
+    const config = await this.botService.stock.reserveConfig(order.plan_id);
+    if (!config) {
+      await this.botService.sendMessage(chatId, '❌ کانفیگ به اتمام رسیده است.');
+      await this.botService.sendMessage(order.user_id, '❌ متأسفانه کانفیگ مورد نظر به اتمام رسیده است.');
+      return;
+    }
+    
+    // به‌روزرسانی سفارش
+    order.status = 1;
+    order.config_id = config.id;
+    order.approved_at = new Date();
+    await this.botService.orderRepo.save(order);
+    
+    // آپدیت کانفیگ به عنوان فروخته شده
+    config.is_sold_out = true;
+    await this.botService.configRepo.save(config);
+    
+    // حذف از کش
+    await this.botService.cache.del(`pending_order_${order.user_id}`);
+    
+    // ارسال لینک اشتراک به کاربر
+    const subLink = await this.botService.sub.getSub();
+    const finalLink = `${subLink}${config.config_link}`;
+    
+    const successMessage = 
+      `🎉 **تبریک!** 🎉\n\n` +
+      `✅ سفارش شما با موفقیت تایید شد!\n\n` +
+      `🔗 **لینک اشتراک شما:**\n` +
+      `\`${finalLink}\`\n\n` +
+      `📌 برای کپی کردن، روی لینک کلیک کنید.`;
+    
+    await this.botService.sendMessage(order.user_id, successMessage, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🔧 نحوه اتصال', callback_data: 'how_to_connect' }],
+          [{ text: '🏠 بازگشت به صفحه اصلی', callback_data: 'main_menu' }]
+        ]
+      }
+    });
+    
+    await this.botService.sendMessage(chatId, `✅ سفارش #${order.id} با موفقیت تایید و کانفیگ ارسال شد.`);
+  }
+  
+  async adminRejectOrder(chatId: number, userId: number, orderId: number) {
+    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
+    
+    const order = await this.botService.orderRepo.findOne({
+      where: { id: orderId },
+      relations: ['plan']
+    });
+    
+    if (!order) {
+      await this.botService.sendMessage(chatId, '❌ سفارش یافت نشد.');
+      return;
+    }
+    
+    if (order.status !== 0) {
+      await this.botService.sendMessage(chatId, '❌ این سفارش قبلاً بررسی شده است.');
+      return;
+    }
+    
+    order.status = 2;
+    await this.botService.orderRepo.save(order);
+    
+    await this.botService.cache.del(`pending_order_${order.user_id}`);
+    
+    const rejectMessage = 
+      `❌ **متأسفانه** ❌\n\n` +
+      `سفارش شما تایید نشد.\n\n` +
+      `📞 لطفاً با پشتیبانی تماس بگیرید.`;
+    
+    await this.botService.sendMessage(order.user_id, rejectMessage, {
+      parse_mode: 'Markdown',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '🏠 بازگشت به صفحه اصلی', callback_data: 'main_menu' }]
+        ]
+      }
+    });
+    
+    await this.botService.sendMessage(chatId, `❌ سفارش #${order.id} رد شد.`);
+  }  
+  
   async waitForReceipt(chatId: number, userId: number, data: string) {
     const planId = parseInt(data.split('_')[2]);
     const state = this.botService.getAdminState(userId);
