@@ -145,7 +145,7 @@ export class StockService {
 
   async canPurchase(planId: number): Promise<boolean> {
     const cached = await this.cacheService.get<boolean>(`can_purchase_${planId}`);
-
+  
     if (cached !== undefined && cached !== null) {
       return cached;
     }
@@ -153,30 +153,33 @@ export class StockService {
     const remaining = await this.getRemainingStock(planId);
     const canPurchase = remaining > 0;
     
+    console.log(`🔍 Plan ${planId}: remaining=${remaining}, canPurchase=${canPurchase}`);
+    
     await this.cacheService.set(`can_purchase_${planId}`, canPurchase, 60);
     return canPurchase;
   }
   
-async getRemainingStock(planId: number): Promise<number> {    
-  const cached = await this.cacheService.get<number>(`remaining_stock_${planId}`);
-  if (cached !== undefined && cached !== null) {
-    console.log(`📦 returning cached: ${cached}`);
-    return cached;
-  }
+  async getRemainingStock(planId: number): Promise<number> {    
+    const cached = await this.cacheService.get<number>(`remaining_stock_${planId}`);
+    if (cached !== undefined && cached !== null) {
+      console.log(`📦 returning cached: ${cached}`);
+      return cached;
+    }
+  
+    const plan = await this.planRepository.findOne({ where: { id: planId } });
+    if (!plan) return 0;
 
-  const plan = await this.planRepository.findOne({ where: { id: planId } });
-  if (!plan) return 0;
-  
-  const soldConfigs = await this.configRepository.count({
-    where: { plan_id: planId, is_sold_out: true },
-  });
-  
-  const remaining = (plan.stock || 0) - soldConfigs;
-  console.log(`📊 Plan ${planId}: stock=${plan.stock}, sold=${soldConfigs}, remaining=${remaining}`);
-  
-  await this.cacheService.set(`remaining_stock_${planId}`, remaining, 60);
-  return remaining;
-}
+    const availableConfigs = await this.configRepository.count({
+      where: { plan_id: planId, is_sold_out: false },
+    });
+
+    const remaining = availableConfigs;
+    
+    console.log(`📊 Plan ${planId}: stock=${plan.stock}, availableConfigs=${availableConfigs}, remaining=${remaining}`);
+    
+    await this.cacheService.set(`remaining_stock_${planId}`, remaining, 60);
+    return remaining;
+  }
 
   async reserveConfig(planId: number): Promise<Config | null> {
     const queryRunner = this.dataSource.createQueryRunner();

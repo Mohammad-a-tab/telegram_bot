@@ -27,14 +27,20 @@ export class PlanAdminService {
     await queryRunner.startTransaction();
     
     try {
+      // ایمن‌سازی bandwidth_value
+      let bandwidthValue = 0;
+      if (data.bandwidth_value !== undefined && !isNaN(data.bandwidth_value)) {
+        bandwidthValue = data.bandwidth_value;
+      }
+      
       const validatedData = {
         name: data.name || '',
         description: data.description || '',
-        price: data.price && !isNaN(data.price) ? data.price : 0,
-        discounted_price: data.discounted_price && !isNaN(data.discounted_price) ? data.discounted_price : null,
+        price: (data.price && !isNaN(data.price)) ? data.price : 0,
+        discounted_price: (data.discounted_price && !isNaN(data.discounted_price)) ? data.discounted_price : null,
         has_discount: data.has_discount || false,
-        duration_days: data.duration_days && !isNaN(data.duration_days) ? data.duration_days : 0,
-        bandwidth_value: data.bandwidth_value && !isNaN(data.bandwidth_value) ? data.bandwidth_value : 0,
+        duration_days: (data.duration_days && !isNaN(data.duration_days)) ? data.duration_days : 0,
+        bandwidth_value: bandwidthValue,
         bandwidth_unit: data.bandwidth_unit || 'GB',
         stock: 0,
         is_active: data.is_active !== undefined ? data.is_active : true,

@@ -300,6 +300,8 @@ export class PlanHandler {
         `• در غیر این صورت واحد مورد نظر را انتخاب کنید:`,
         unitKeyboard
       );
+
+      this.botService.setAdminState(userId, state);
     }
   }
 
@@ -311,6 +313,15 @@ export class PlanHandler {
     }
     
     const data = state.data || {};
+    const bandwidthValue = data.bandwidth_value;
+    
+    // بررسی اینکه مقدار حجم وجود داره
+    if (bandwidthValue === undefined || isNaN(bandwidthValue)) {
+      await this.botService.sendMessage(chatId, '❌ خطا: مقدار حجم نامعتبر است. لطفاً مراحل را دوباره طی کنید.');
+      this.botService.clearAdminState(userId);
+      return;
+    }
+    
     data.bandwidth_unit = unit;
     data.is_active = true;
     data.stock = 0;
@@ -318,10 +329,14 @@ export class PlanHandler {
     try {
       const newPlan = await this.botService.planAdmin.createPlan(data);
       
-      const unitText = unit === 'GB' ? 'گیگابایت' : 'مگابایت';
-      const bandwidthDisplay = data.bandwidth_value === 0 
-        ? 'نامحدود' 
-        : `${data.bandwidth_value.toLocaleString()} ${unitText}`;
+      // نمایش نتیجه
+      let volumeDisplay = '';
+      if (bandwidthValue === 0) {
+        volumeDisplay = 'نامحدود';
+      } else {
+        const unitText = unit === 'GB' ? 'گیگابایت' : 'مگابایت';
+        volumeDisplay = `${bandwidthValue.toLocaleString()} ${unitText}`;
+      }
       
       await this.botService.sendMessage(chatId, 
         `✅ **پلن با موفقیت ایجاد شد!**\n\n` +
@@ -329,12 +344,13 @@ export class PlanHandler {
         `📝 توضیحات: ${newPlan.description}\n` +
         `💰 قیمت: ${newPlan.price.toLocaleString()} تومان\n` +
         `⏱ مدت: ${newPlan.duration_days} روز\n` +
-        `📊 حجم: ${bandwidthDisplay}\n\n` +
-        `🔗 برای فعال کردن این پلن، کانفیگ اضافه کنید:\n` +
+        `📊 حجم: ${volumeDisplay}\n\n` +
+        `🔗 برای فعال کردن این پلن، از پنل مدیریت کانفیگ اضافه کنید.`,
         { parse_mode: 'Markdown' }
       );
     } catch (error) {
-      await this.botService.sendMessage(chatId, `❌ خطا: ${error.message}`);
+      console.error('Error creating plan:', error);
+      await this.botService.sendMessage(chatId, `❌ خطا در ایجاد پلن: ${error.message}`);
     }
     
     this.botService.clearAdminState(userId);
