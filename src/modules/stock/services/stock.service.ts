@@ -162,20 +162,29 @@ export class StockService {
     ]);
   }
 
+  private readonly VPN_PROTOCOLS = ['vless://', 'vmess://', 'trojan://', 'ss://', 'ssr://'];
+  private readonly HTTP_PROTOCOLS = ['https://', 'http://'];
+
   private extractLinks(input: string): string[] {
     const links: string[] = [];
     for (const line of input.split(/\r?\n/)) {
       for (const part of line.split(',')) {
-        for (const token of part.split(/\s+/)) {
-          const t = token.trim();
-          if (t.startsWith('https://') || t.startsWith('http://')) links.push(t);
-        }
+        const t = part.trim();
+        if (!t) continue;
+        const isVpn  = this.VPN_PROTOCOLS.some((p) => t.startsWith(p));
+        const isHttp = this.HTTP_PROTOCOLS.some((p) => t.startsWith(p));
+        if (isVpn || isHttp) links.push(t);
       }
     }
     return [...new Set(links)];
   }
 
   private extractToken(link: string): string {
+    // VPN protocol links (vless://, vmess://, etc.) are stored as-is
+    const isVpn = this.VPN_PROTOCOLS.some((p) => link.startsWith(p));
+    if (isVpn) return link;
+
+    // For HTTP(S) subscription links, extract the token from the path
     const patterns = [
       /\/sub\/([a-zA-Z0-9]+)(?:\?|$)/,
       /:\d+\/sub\/([a-zA-Z0-9]+)/,
