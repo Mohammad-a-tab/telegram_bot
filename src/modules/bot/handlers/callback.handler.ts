@@ -11,6 +11,7 @@ import { SubHandler } from './sub.handler';
 import { ServiceHandler } from './service.handler';
 import { getMainKeyboard } from '../keyboards/main.keyboard';
 import { OrderStatus, BandwidthUnit } from '../../../common/enums';
+import { AdminStateManager } from '../states/admin.state';
 
 @Injectable()
 export class CallbackHandler {
@@ -18,6 +19,7 @@ export class CallbackHandler {
     private readonly channelMiddleware: ChannelMiddleware,
     private readonly adminMiddleware: AdminMiddleware,
     private readonly sender: TelegramSender,
+    private readonly stateManager: AdminStateManager,
     private readonly userHandler: UserHandler,
     private readonly planHandler: PlanHandler,
     private readonly orderHandler: OrderHandler,
