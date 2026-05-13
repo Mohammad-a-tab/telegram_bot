@@ -34,6 +34,11 @@ export class CallbackHandler {
 
     await this.sender.answerCallback(bot, id);
 
+    // Clear any stuck state unless the user is intentionally entering the receipt flow
+    if (!data.startsWith('send_receipt_')) {
+      this.stateManager.clear(userId);
+    }
+
     const isMember = await this.channelMiddleware.ensureMembership(bot, userId, chatId);
     if (!isMember) return;
 

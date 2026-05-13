@@ -52,24 +52,30 @@ export class BotService {
   private registerHandlers(): void {
     const b = this.bot;
 
-    b.onText(/\/start/, (m) =>
-      this.userHandler.handleStart(b, m.chat.id, m.from.id, m.from.first_name, m.from.last_name),
-    );
-    b.onText(/🛒 خرید VPN/, (m) =>
-      this.userHandler.showPlans(b, m.chat.id, m.from.id, m.from.username, m.from.first_name, m.from.last_name),
-    );
-    b.onText(/🛍️ سرویس‌های من/, (m) =>
-      this.userHandler.showUserServices(b, m.chat.id, m.from.id),
-    );
-    b.onText(/💬 پشتیبانی/, (m) =>
-      this.userHandler.handleSupport(b, m.chat.id),
-    );
-    b.onText(/🔧 نحوه اتصال/, (m) =>
-      this.userHandler.handleHowToConnect(b, m.chat.id),
-    );
-    b.onText(/🛠 پنل مدیریت/, (m) =>
-      this.planHandler.showPanel(b, m.chat.id, m.from.id),
-    );
+    b.onText(/\/start/, (m) => {
+      this.stateManager.clear(m.from.id);
+      this.userHandler.handleStart(b, m.chat.id, m.from.id, m.from.first_name, m.from.last_name);
+    });
+    b.onText(/🛒 خرید VPN/, (m) => {
+      this.stateManager.clear(m.from.id);
+      this.userHandler.showPlans(b, m.chat.id, m.from.id, m.from.username, m.from.first_name, m.from.last_name);
+    });
+    b.onText(/🛍️ سرویس‌های من/, (m) => {
+      this.stateManager.clear(m.from.id);
+      this.userHandler.showUserServices(b, m.chat.id, m.from.id);
+    });
+    b.onText(/💬 پشتیبانی/, (m) => {
+      this.stateManager.clear(m.from.id);
+      this.userHandler.handleSupport(b, m.chat.id);
+    });
+    b.onText(/🔧 نحوه اتصال/, (m) => {
+      this.stateManager.clear(m.from.id);
+      this.userHandler.handleHowToConnect(b, m.chat.id);
+    });
+    b.onText(/🛠 پنل مدیریت/, (m) => {
+      this.stateManager.clear(m.from.id);
+      this.planHandler.showPanel(b, m.chat.id, m.from.id);
+    });
 
     b.on('callback_query', (q) =>
       this.callbackHandler.handle(b, q).catch((e) => this.logger.error(e.message)),

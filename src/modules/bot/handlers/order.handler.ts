@@ -92,7 +92,7 @@ export class OrderHandler {
         }
       }
 
-      await this.sender.send(bot, chatId, `✅ سفارش شما با شماره #${order.id} ثبت شد. پس از بررسی، نتیجه به شما اطلاع داده می‌شود.`);
+      await this.sender.send(bot, chatId, `✅ سفارش شما با شماره #${order.id} ثبت شد. پس از بررسی توسط ادمین، نتیجه به شما اطلاع داده می‌شود.`);
       this.stateManager.clear(userId);
     } catch (error) {
       this.logger.error(`createOrder failed: ${error.message}`);
