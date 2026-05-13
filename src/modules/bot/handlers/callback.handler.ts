@@ -41,7 +41,12 @@ export class CallbackHandler {
     await this.sender.answerCallback(bot, id);
 
     // Clear any stuck state unless the user is intentionally entering the receipt flow
-    if (!data.startsWith('send_receipt_')) {
+    // or selecting a bandwidth unit (which requires the add_plan state to persist)
+    if (
+      !data.startsWith('send_receipt_') &&
+      !data.startsWith('plan_unit_gb_') &&
+      !data.startsWith('plan_unit_mb_')
+    ) {
       this.stateManager.clear(userId);
     }
 
