@@ -95,8 +95,8 @@ export class UserHandler {
     }
 
     const plan = await this.planService.findById(planId);
-    if (!plan) {
-      await this.sender.send(bot, chatId, '❌ پلن مورد نظر یافت نشد.');
+    if (!plan || !plan.is_active) {
+      await this.sender.send(bot, chatId, '❌ این پلن فعلا فعال نیست.');
       return;
     }
 

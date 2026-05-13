@@ -37,30 +37,63 @@ export class ConfigHandler {
     const plan = await this.planService.findById(planId);
     if (!plan) return;
 
-    const configs = await this.configService.findByPlan(planId);
-    if (!configs.length) {
-      await this.sender.send(bot, chatId, `⚠️ هیچ کانفیگی برای پلن "${plan.name}" یافت نشد.`);
-      return;
-    }
+    const total = await this.configService.countByPlan(planId);
 
-    // Header message
     await this.sender.send(
       bot,
       chatId,
-      `⚙️ <b>کانفیگ‌های پلن: ${plan.name}</b>\n📊 موجودی: ${plan.stock}\n📋 تعداد: ${configs.length}`,
+      `⚙️ <b>کانفیگ‌های پلن: ${plan.name}</b>\n📊 موجودی: ${plan.stock}\n📋 کل: ${total}\n\nنمایش:`,
+      {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: '✅ موجود', callback_data: `admin_configs_filter_available_${planId}` },
+              { text: '❌ فروخته شده', callback_data: `admin_configs_filter_sold_${planId}` },
+              { text: '📋 همه', callback_data: `admin_configs_filter_all_${planId}` },
+            ],
+            [{ text: '🔙 بازگشت', callback_data: 'admin_list_configs' }],
+          ],
+        },
+      },
+    );
+  }
+
+  async showPlanConfigsFiltered(
+    bot: any,
+    chatId: number,
+    userId: number,
+    planId: number,
+    filter: 'all' | 'available' | 'sold',
+  ): Promise<void> {
+    if (!this.adminMiddleware.isAdmin(userId)) return;
+    const plan = await this.planService.findById(planId);
+    if (!plan) return;
+
+    const configs =
+      filter === 'all'
+        ? await this.configService.findByPlan(planId)
+        : await this.configService.findByPlanAndStatus(planId, filter === 'sold');
+
+    if (!configs.length) {
+      await this.sender.send(bot, chatId, `⚠️ کانفیگی در این دسته‌بندی یافت نشد.`);
+      return;
+    }
+
+    const label = filter === 'all' ? 'همه' : filter === 'available' ? 'موجود' : 'فروخته شده';
+    await this.sender.send(
+      bot, chatId,
+      `⚙️ <b>${plan.name} — ${label} (${configs.length})</b>`,
       { parse_mode: 'HTML' },
     );
 
-    // Send each config as a separate message so the link is always copyable
     for (const config of configs) {
       const status = config.is_sold_out ? '❌ فروخته شده' : '✅ موجود';
       let text = `🆔 #${config.id} ${status}\n🔗 <code>${config.config_link}</code>`;
-
       if (config.is_sold_out) {
         const buyer = await this.configService.getBuyerForConfig(config.id);
         if (buyer) text += `\n👤 خریدار: ${buyer}`;
       }
-
       await this.sender.send(bot, chatId, text, { parse_mode: 'HTML' });
     }
   }

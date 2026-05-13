@@ -19,6 +19,10 @@ export class ConfigService {
     return this.configRepository.findByPlan(planId);
   }
 
+  findByPlanAndStatus(planId: number, isSoldOut: boolean): Promise<Config[]> {
+    return this.configRepository.findByPlanAndStatus(planId, isSoldOut);
+  }
+
   countByPlan(planId: number): Promise<number> {
     return this.configRepository.countByPlan(planId);
   }

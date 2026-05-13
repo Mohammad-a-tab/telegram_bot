@@ -19,7 +19,11 @@ export class ConfigRepository {
   }
 
   findByPlan(planId: number): Promise<Config[]> {
-    return this.repo.find({ where: { plan_id: planId } });
+    return this.repo.find({ where: { plan_id: planId }, order: { id: 'ASC' } });
+  }
+
+  findByPlanAndStatus(planId: number, isSoldOut: boolean): Promise<Config[]> {
+    return this.repo.find({ where: { plan_id: planId, is_sold_out: isSoldOut }, order: { id: 'ASC' } });
   }
 
   findAvailableByPlan(planId: number): Promise<Config | null> {

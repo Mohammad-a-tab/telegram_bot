@@ -104,6 +104,15 @@ export class CallbackHandler {
     if (data.startsWith('admin_show_configs_')) {
       return void this.configHandler.showPlanConfigs(bot, chatId, userId, parseInt(data.split('_')[3]));
     }
+    if (data.startsWith('admin_configs_filter_available_')) {
+      return void this.configHandler.showPlanConfigsFiltered(bot, chatId, userId, parseInt(data.split('_')[4]), 'available');
+    }
+    if (data.startsWith('admin_configs_filter_sold_')) {
+      return void this.configHandler.showPlanConfigsFiltered(bot, chatId, userId, parseInt(data.split('_')[4]), 'sold');
+    }
+    if (data.startsWith('admin_configs_filter_all_')) {
+      return void this.configHandler.showPlanConfigsFiltered(bot, chatId, userId, parseInt(data.split('_')[4]), 'all');
+    }
     if (data.startsWith('admin_select_plan_for_edit_')) {
       return void this.planHandler.startEditPlanById(bot, chatId, userId, parseInt(data.split('_')[5]));
     }
