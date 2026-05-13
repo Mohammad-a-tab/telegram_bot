@@ -9,6 +9,7 @@ import { DiscountHandler } from './handlers/discount.handler';
 import { SubHandler } from './handlers/sub.handler';
 import { ServiceHandler } from './handlers/service.handler';
 import { BroadcastHandler } from './handlers/broadcast.handler';
+import { DailyReportService } from '../order/services/daily-report.service';
 import { TelegramSender } from './utils/telegram-sender';
 import { MessageHelper } from './utils/message.utils';
 import { AdminStateManager } from './states/admin.state';
@@ -50,6 +51,7 @@ import { CacheModule } from '../cache/cache.module';
     SubHandler,
     ServiceHandler,
     BroadcastHandler,
+    DailyReportService,
   ],
   exports: [BotService],
 })

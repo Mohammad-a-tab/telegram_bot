@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ScheduleModule } from '@nestjs/schedule';
 import { User } from './modules/user/entities/user.entity';
 import { Plan } from './modules/plan/entities/plan.entity';
 import { Order } from './modules/order/entities/order.entity';
@@ -12,6 +13,7 @@ import { BotModule } from './modules/bot/bot.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     TypeOrmModule.forRoot({
       type: 'postgres',
       host: process.env.DB_HOST,
