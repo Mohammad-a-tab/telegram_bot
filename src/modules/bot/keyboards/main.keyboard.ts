@@ -2,7 +2,8 @@ export const getMainKeyboard = (isAdmin: boolean = false, _userId?: number) => {
   const keyboardRows: { text: string }[][] = [
     [{ text: '🛒 خرید VPN' }],
     [{ text: '💬 پشتیبانی' }, { text: '🛍️ سرویس‌های من' }],
-    [{ text: '🔧 نحوه اتصال' }, { text: '👥 دعوت از دوستان' }],
+    [{ text: '🔧 نحوه اتصال' }],
+    // , { text: '👥 دعوت از دوستان' }
   ];
 
   if (isAdmin) {

@@ -91,10 +91,10 @@ export class BotService {
       this.stateManager.clear(m.from.id);
       this.userHandler.handleHowToConnect(b, m.chat.id);
     });
-    b.onText(/👥 دعوت از دوستان/, (m) => {
-      this.stateManager.clear(m.from.id);
-      this.referralHandler.showInvitePage(b, m.chat.id, m.from.id).catch((e) => this.logger.error(e.message));
-    });
+    // b.onText(/👥 دعوت از دوستان/, (m) => {
+    //   this.stateManager.clear(m.from.id);
+    //   this.referralHandler.showInvitePage(b, m.chat.id, m.from.id).catch((e) => this.logger.error(e.message));
+    // });
     b.onText(/🛠 پنل مدیریت/, (m) => {
       this.stateManager.clear(m.from.id);
       this.planHandler.showPanel(b, m.chat.id, m.from.id);

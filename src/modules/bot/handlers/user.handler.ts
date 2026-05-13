@@ -59,8 +59,7 @@ export class UserHandler {
     const planButtons = plans.map((plan) => {
       let text: string;
       if (plan.has_discount && plan.discounted_price) {
-        const pct = Math.round(((plan.price - plan.discounted_price) / plan.price) * 100);
-        text = `📦 ${plan.name} 💰${plan.price.toLocaleString()} ← 💎${plan.discounted_price.toLocaleString()} (-${pct}%) 🔥`;
+        text = `📦 ${plan.name} 💰${plan.price.toLocaleString()} ← 💎${plan.discounted_price.toLocaleString()} 🔥`;
       } else {
         text = `📦 ${plan.name} 💰${plan.price.toLocaleString()}`;
       }
