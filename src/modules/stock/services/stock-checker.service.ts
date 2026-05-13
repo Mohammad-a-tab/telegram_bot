@@ -13,7 +13,7 @@ export class StockCheckerService {
   ) {}
 
   startChecking(bot: any, adminGroupId: string): void {
-    this.logger.log('Stock checker started — interval: 15 minutes');
+    this.logger.log('Stock checker started — interval: 55 minutes');
     this.checkAndNotify(bot, adminGroupId);
     setInterval(() => this.checkAndNotify(bot, adminGroupId), StockCheckInterval.STOCK_CHECKER_MS);
   }
