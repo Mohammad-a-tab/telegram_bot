@@ -73,22 +73,12 @@ export class ReferralHandler {
     planName: string,
     configLink: string,
   ): Promise<void> {
-    const isDirectLink =
-      configLink.startsWith('vmess://') ||
-      configLink.startsWith('vless://') ||
-      configLink.startsWith('trojan://') ||
-      configLink.startsWith('ss://');
-
-    const linkDisplay = isDirectLink
-      ? `<code>${configLink}</code>`
-      : `<code>${configLink}</code>`;
-
     await this.sender.send(
       bot,
       inviterId,
       `🎉 تبریک! جایزه دعوت دریافت کردی!\n\n` +
       `✅ با دعوت موفق دوستانت، پلن <b>${planName}</b> به صورت رایگان برات فعال شد!\n\n` +
-      `🔗 لینک اشتراک:\n${linkDisplay}\n\n` +
+      `🔗 لینک اشتراک:\n<code>${configLink}</code>\n\n` +
       `📌 برای کپی کردن روی لینک کلیک کن.`,
       {
         parse_mode: 'HTML',

@@ -38,19 +38,31 @@ export class ConfigHandler {
     if (!plan) return;
 
     const configs = await this.configService.findByPlan(planId);
-    if (!configs.length) { await this.sender.send(bot, chatId, `⚠️ هیچ کانفیگی برای پلن "${plan.name}" یافت نشد.`); return; }
-
-    let message = `⚙️ **کانفیگ‌های پلن: ${plan.name}**\n📊 موجودی: ${plan.stock}\n📋 تعداد: ${configs.length}\n\n`;
-    for (const config of configs) {
-      message += `🆔 #${config.id} ${config.is_sold_out ? '❌ فروخته شده' : '✅ موجود'}\n🔗 \`${config.config_link}\`\n`;
-      if (config.is_sold_out) {
-        const buyer = await this.configService.getBuyerForConfig(config.id);
-        if (buyer) message += `👤 خریدار: ${buyer}\n`;
-      }
-      message += '\n';
+    if (!configs.length) {
+      await this.sender.send(bot, chatId, `⚠️ هیچ کانفیگی برای پلن "${plan.name}" یافت نشد.`);
+      return;
     }
 
-    await this.sender.send(bot, chatId, message);
+    // Header message
+    await this.sender.send(
+      bot,
+      chatId,
+      `⚙️ <b>کانفیگ‌های پلن: ${plan.name}</b>\n📊 موجودی: ${plan.stock}\n📋 تعداد: ${configs.length}`,
+      { parse_mode: 'HTML' },
+    );
+
+    // Send each config as a separate message so the link is always copyable
+    for (const config of configs) {
+      const status = config.is_sold_out ? '❌ فروخته شده' : '✅ موجود';
+      let text = `🆔 #${config.id} ${status}\n🔗 <code>${config.config_link}</code>`;
+
+      if (config.is_sold_out) {
+        const buyer = await this.configService.getBuyerForConfig(config.id);
+        if (buyer) text += `\n👤 خریدار: ${buyer}`;
+      }
+
+      await this.sender.send(bot, chatId, text, { parse_mode: 'HTML' });
+    }
   }
 
   async startAdd(bot: any, chatId: number, userId: number, planId: number): Promise<void> {
