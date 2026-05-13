@@ -18,6 +18,8 @@ import { SubModule } from '../sub/sub.module';
 import { StockModule } from '../stock/stock.module';
 import { ConfigModule } from '../config/config.module';
 import { TelegramModule } from '../telegram/telegram.module';
+import { ReferralModule } from '../referral/referral.module';
+import { CacheModule } from '../cache/cache.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { TelegramModule } from '../telegram/telegram.module';
     StockModule,
     ConfigModule,
     TelegramModule,
+    ReferralModule,
+    CacheModule,
   ],
   providers: [
     // core

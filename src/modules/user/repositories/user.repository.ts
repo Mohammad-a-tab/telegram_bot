@@ -14,6 +14,10 @@ export class UserRepository {
     return this.repo.findOne({ where: { id } });
   }
 
+  findByRefCode(refCode: string): Promise<User | null> {
+    return this.repo.findOne({ where: { ref_code: refCode } });
+  }
+
   save(user: User): Promise<User> {
     return this.repo.save(user);
   }

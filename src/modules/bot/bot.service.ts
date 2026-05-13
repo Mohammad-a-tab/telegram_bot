@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import TelegramBot from 'node-telegram-bot-api';
 import { AdminStateManager } from './states/admin.state';
 import { CallbackHandler } from './handlers/callback.handler';
 import { UserHandler } from './handlers/user.handler';
@@ -8,9 +9,11 @@ import { ConfigHandler } from './handlers/config.handler';
 import { DiscountHandler } from './handlers/discount.handler';
 import { SubHandler } from './handlers/sub.handler';
 import { StockCheckerService } from '../stock/services';
+import { ReferralService } from '../referral/services/referral.service';
+import { ReferralHandler } from '../referral/handlers/referral.handler';
+import { CacheService } from '../cache/cache.service';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const TelegramBot = require('node-telegram-bot-api');
+import { FeatureGuard } from './utils/feature-guard';
 
 @Injectable()
 export class BotService {
@@ -27,6 +30,9 @@ export class BotService {
     private readonly discountHandler: DiscountHandler,
     private readonly subHandler: SubHandler,
     private readonly stockChecker: StockCheckerService,
+    private readonly referralService: ReferralService,
+    private readonly referralHandler: ReferralHandler,
+    private readonly cacheService: CacheService,
   ) {}
 
   async init(token: string): Promise<void> {
@@ -52,8 +58,15 @@ export class BotService {
   private registerHandlers(): void {
     const b = this.bot;
 
-    b.onText(/\/start/, (m) => {
+    b.onText(/\/start(?:\s+(.+))?/, (m, match) => {
       this.stateManager.clear(m.from.id);
+      const payload = match?.[1]?.trim();
+      const refCode = payload ? this.referralService.parseStartPayload(payload) : null;
+      if (refCode) {
+        // Store pending ref code — resolved to inviter id after membership confirm
+        const key = this.referralService.getPendingKey(m.from.id);
+        this.cacheService.set(key, { refCode }, 60 * 60).catch(() => {});
+      }
       this.userHandler.handleStart(b, m.chat.id, m.from.id, m.from.first_name, m.from.last_name);
     });
     b.onText(/🛒 خرید VPN/, (m) => {
@@ -71,6 +84,10 @@ export class BotService {
     b.onText(/🔧 نحوه اتصال/, (m) => {
       this.stateManager.clear(m.from.id);
       this.userHandler.handleHowToConnect(b, m.chat.id);
+    });
+    b.onText(/👥 دعوت از دوستان/, (m) => {
+      this.stateManager.clear(m.from.id);
+      this.referralHandler.showInvitePage(b, m.chat.id, m.from.id).catch((e) => this.logger.error(e.message));
     });
     b.onText(/🛠 پنل مدیریت/, (m) => {
       this.stateManager.clear(m.from.id);

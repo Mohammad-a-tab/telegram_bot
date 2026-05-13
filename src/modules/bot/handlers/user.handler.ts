@@ -41,7 +41,7 @@ export class UserHandler {
       `• پلن‌های متنوع و مقرون‌به‌صرفه\n\n` +
       `🚀 کافیه روی **خرید VPN** کلیک کنی و توی چند ثانیه وصل بشی!`;
 
-    await this.sender.send(bot, chatId, message, getMainKeyboard(isAdmin));
+    await this.sender.send(bot, chatId, message, getMainKeyboard(isAdmin, userId));
   }
 
   async showPlans(bot: any, chatId: number, userId: number, username?: string, firstName?: string, lastName?: string): Promise<void> {
