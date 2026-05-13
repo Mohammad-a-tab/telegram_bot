@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import TelegramBot from 'node-telegram-bot-api';
 import { AdminStateManager } from './states/admin.state';
 import { CallbackHandler } from './handlers/callback.handler';
 import { UserHandler } from './handlers/user.handler';
@@ -12,8 +13,7 @@ import { ReferralService } from '../referral/services/referral.service';
 import { ReferralHandler } from '../referral/handlers/referral.handler';
 import { CacheService } from '../cache/cache.service';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const TelegramBot = require('node-telegram-bot-api');
+import { FeatureGuard } from './utils/feature-guard';
 
 @Injectable()
 export class BotService {
