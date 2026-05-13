@@ -1,6 +1,7 @@
 import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, OneToMany, Index } from 'typeorm';
 import { Order } from '../../order/entities/order.entity';
 import { Config } from '../../config/entities/config.entity';
+import { BandwidthUnit } from '../../../common/enums';
 
 @Entity('plans')
 @Index(['is_active', 'stock'])
@@ -29,8 +30,8 @@ export class Plan {
   @Column({ type: 'int', default: 0 })
   bandwidth_value: number;
 
-  @Column({ type: 'varchar', default: 'GB' })
-  bandwidth_unit: string;
+  @Column({ type: 'varchar', default: BandwidthUnit.GB })
+  bandwidth_unit: BandwidthUnit;
 
   @Column({ type: 'int', nullable: true, default: 0 })
   stock: number;

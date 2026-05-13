@@ -1,19 +1,37 @@
-import { BotService } from '../bot.service';
+import { Injectable } from '@nestjs/common';
+import { PlanService } from '../../plan/services';
+import { OrderService } from '../../order/services';
+import { UserService } from '../../user/services';
+import { StockService } from '../../stock/services';
+import { AdminMiddleware } from '../../telegram/middlewares/admin.middleware';
+import { ChannelMiddleware } from '../../telegram/middlewares/channel.middleware';
+import { AdminStateManager } from '../states/admin.state';
+import { MessageHelper } from '../utils/message.utils';
+import { TelegramSender } from '../utils/telegram-sender';
 import { getMainKeyboard } from '../keyboards/main.keyboard';
 
+@Injectable()
 export class UserHandler {
-  constructor(private readonly botService: BotService) {}
+  constructor(
+    private readonly planService: PlanService,
+    private readonly orderService: OrderService,
+    private readonly userService: UserService,
+    private readonly stockService: StockService,
+    private readonly adminMiddleware: AdminMiddleware,
+    private readonly channelMiddleware: ChannelMiddleware,
+    private readonly stateManager: AdminStateManager,
+    private readonly sender: TelegramSender,
+    private readonly messageHelper: MessageHelper,
+  ) {}
 
-  async handleStart(chatId: number, userId: number, firstName: string, lastName?: string) {
-    const isMember = await this.botService.ensureMembership(userId, chatId);
+  async handleStart(bot: any, chatId: number, userId: number, firstName: string, lastName?: string): Promise<void> {
+    const isMember = await this.channelMiddleware.ensureMembership(bot, userId, chatId);
     if (!isMember) return;
-  
-    const isAdmin = await this.botService.adminMiddleware.isAdmin(userId);
-    const keyboard = getMainKeyboard(isAdmin);
-    
+
+    const isAdmin = this.adminMiddleware.isAdmin(userId);
     const fullName = lastName ? `${firstName} ${lastName}` : firstName;
-    
-    const message = 
+
+    const message =
       `👋 سلام **${fullName}**\n\n` +
       `🎉 به ربات فروش VPN خوش اومدی!\n\n` +
       `🔐 **ویژگی‌های ما:**\n` +
@@ -22,146 +40,130 @@ export class UserHandler {
       `• پشتیبانی ۲۴ ساعته\n` +
       `• پلن‌های متنوع و مقرون‌به‌صرفه\n\n` +
       `🚀 کافیه روی **خرید VPN** کلیک کنی و توی چند ثانیه وصل بشی!`;
-    
-    await this.botService.sendMessage(chatId, message, {
-      parse_mode: 'Markdown',
-      ...keyboard
-    });
+
+    await this.sender.send(bot, chatId, message, getMainKeyboard(isAdmin));
   }
 
-  async showPlans(chatId: number, userId: number, username?: string, firstName?: string, lastName?: string) {
-    if (!await this.botService.ensureMembership(userId, chatId)) return;
-  
-    await this.botService.upsertUser(userId, username, firstName, lastName);
-  
-    let plans = await this.botService.cache.getPlans();
-    if (!plans) {
-      plans = await this.botService.planRepo.find({ where: { is_active: true }, order: { price: 'ASC' } });
-      await this.botService.cache.setPlans(plans);
-    }
-  
+  async showPlans(bot: any, chatId: number, userId: number, username?: string, firstName?: string, lastName?: string): Promise<void> {
+    const isMember = await this.channelMiddleware.ensureMembership(bot, userId, chatId);
+    if (!isMember) return;
+
+    await this.userService.upsert(userId, username, firstName, lastName);
+
+    const plans = await this.planService.findActiveCached();
     if (!plans.length) {
-      await this.botService.sendMessage(chatId, '⚠️ هیچ پلن فعالی وجود ندارد.');
+      await this.sender.send(bot, chatId, '⚠️ هیچ پلن فعالی وجود ندارد.');
       return;
     }
-  
-    const headerMessage = 
+
+    const planButtons = plans.map((plan) => {
+      let text: string;
+      if (plan.has_discount && plan.discounted_price) {
+        const pct = Math.round(((plan.price - plan.discounted_price) / plan.price) * 100);
+        text = `📦 ${plan.name} 💰${plan.price.toLocaleString()} ← 💎${plan.discounted_price.toLocaleString()} (-${pct}%) 🔥`;
+      } else {
+        text = `📦 ${plan.name} 💰${plan.price.toLocaleString()}`;
+      }
+      return [{ text, callback_data: `plan_${plan.id}` }];
+    });
+
+    await this.sender.send(
+      bot,
+      chatId,
       `🛒 **خرید VPN**\n\n` +
       `🎉 **جشنواره ۳ روزه تخفیف‌های ویژه** 🎉\n` +
       `به مناسبت جشنواره، تمام پلن‌ها با تخفیف ویژه عرضه می‌شوند.\n` +
       `فرصت رو از دست ندهید! 🚀\n\n` +
-      `👇 لطفاً یکی از پلن‌های زیر را انتخاب کنید:`;
-  
-    const planButtons = plans.map(plan => {
-      let buttonText = '';
-      if (plan.has_discount && plan.discounted_price) {
-        const percent = Math.round(((plan.price - plan.discounted_price) / plan.price) * 100);
-        buttonText = `📦 ${plan.name} 💰${plan.price.toLocaleString()} ← 💎${plan.discounted_price.toLocaleString()} (-${percent}%) 🔥`;
-      } else {
-        buttonText = `📦 ${plan.name} 💰${plan.price.toLocaleString()}`;
-      }
-      return [{ text: buttonText, callback_data: `plan_${plan.id}` }];
-    });
-  
-    await this.botService.sendMessage(chatId, headerMessage, {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: planButtons,
-      },
-    });
+      `👇 لطفاً یکی از پلن‌های زیر را انتخاب کنید:`,
+      { reply_markup: { inline_keyboard: planButtons } },
+    );
   }
-  
-  async selectPlan(chatId: number, userId: number, data: string, username?: string, firstName?: string, lastName?: string) {
-    const planId = parseInt(data.split('_')[1]);
-    const pendingKey = `pending_order_${userId}`;
-    const existingPending = await this.botService.cache.get(pendingKey);
-    
-    if (existingPending) {
-      await this.botService.sendMessage(chatId, '⚠️ شما یک سفارش در انتظار تایید دارید.');
-      return;
-    }
-    
-    const plan = await this.botService.planRepo.findOne({ where: { id: planId } });
-    if (!plan) {
-      await this.botService.sendMessage(chatId, '❌ پلن مورد نظر یافت نشد.');
-      return;
-    }
-    
-    const canPurchase = await this.botService.stock.canPurchase(planId);
-    if (!canPurchase) {
-      await this.botService.sendMessage(chatId, '⚠️ متأسفانه این پلن به اتمام رسیده است.');
-      return;
-    }
-    
-    await this.botService.upsertUser(userId, username, firstName, lastName);
-    
-    this.botService.setAdminState(userId, { action: 'waiting_for_receipt', planId });
-    const finalPrice = plan.has_discount && plan.discounted_price ? plan.discounted_price : plan.price;
-    const cardNumber = process.env.CARD_NUMBER || '**********';
-    const cardHolder = 'نرگس کارگران';
-    const formatPrice = (price: number) => (price * 1000).toLocaleString('en-US');
-  
-    const message = 
-    `💳 اطلاعات پرداخت\n\n` +
-    `📦 پلن: ${plan.name}\n` +
-    `💰 قیمت اصلی: ${formatPrice(plan.price)} تومان\n` +
-    `✅ مبلغ نهایی: ${formatPrice(finalPrice)} تومان\n\n` +
-    `💳 شماره کارت:\n` +
-    `${cardNumber}\n\n` +
-    `👤 صاحب کارت:\n${cardHolder}\n\n` +
-    `💰 مبلغ قابل پرداخت:\n` +
-    `${formatPrice(finalPrice)} تومان\n\n` +
-    `🖼 پس از پرداخت، تصویر رسید را ارسال کنید.`;
 
-    const sentMessage = await this.botService.sendMessage(chatId, message, {
-      parse_mode: 'Markdown',
+  async selectPlan(
+    bot: any,
+    chatId: number,
+    userId: number,
+    planId: number,
+    username?: string,
+    firstName?: string,
+    lastName?: string,
+  ): Promise<void> {
+    const hasPending = await this.orderService.hasPendingOrder(userId);
+    if (hasPending) {
+      await this.sender.send(bot, chatId, '⚠️ شما یک سفارش در انتظار تایید دارید.');
+      return;
+    }
+
+    const plan = await this.planService.findById(planId);
+    if (!plan) {
+      await this.sender.send(bot, chatId, '❌ پلن مورد نظر یافت نشد.');
+      return;
+    }
+
+    /** Fix: use StockService.canPurchase() — correct stock check, not plan cache */
+    const canPurchase = await this.stockService.canPurchase(planId);
+    if (!canPurchase) {
+      await this.sender.send(bot, chatId, '⚠️ متأسفانه این پلن به اتمام رسیده است.');
+      return;
+    }
+
+    await this.userService.upsert(userId, username, firstName, lastName);
+
+    const finalPrice = this.planService.getEffectivePrice(plan);
+    const cardNumber = process.env.CARD_NUMBER ?? '**********';
+    const fmt = (p: number) => (p * 1000).toLocaleString('en-US');
+
+    const message =
+      `💳 اطلاعات پرداخت\n\n` +
+      `📦 پلن: ${plan.name}\n` +
+      `💰 قیمت اصلی: ${fmt(plan.price)} تومان\n` +
+      `✅ مبلغ نهایی: ${fmt(finalPrice)} تومان\n\n` +
+      `💳 شماره کارت:\n${cardNumber}\n\n` +
+      `👤 صاحب کارت:\n${process.env.CARD_HOLDER ?? 'نرگس کارگران'}\n\n` +
+      `💰 مبلغ قابل پرداخت:\n` +
+      `${fmt(finalPrice)} تومان\n\n` +
+      `🖼 پس از پرداخت، تصویر رسید را ارسال کنید.`;
+
+    const sent = await this.sender.send(bot, chatId, message, {
       reply_markup: {
         inline_keyboard: [
           [{ text: '📤 ارسال رسید', callback_data: `send_receipt_${planId}` }],
-          [{ text: '🔙 بازگشت', callback_data: 'buy' }]
-        ]
-      }
+          [{ text: '🔙 بازگشت', callback_data: 'buy' }],
+        ],
+      },
     });
-    
-    this.botService.setAdminState(userId, { 
-      action: 'waiting_for_receipt', 
-      planId,
-      messageId: sentMessage.message_id 
-    });
+
+    this.stateManager.set(userId, { action: 'waiting_for_receipt', planId, messageId: sent?.message_id });
   }
 
-  async showUserServices(chatId: number, userId: number) {
-    if (!await this.botService.ensureMembership(userId, chatId)) return;
-  
-    const orders = await this.botService.orderRepo.find({
-      where: { user_id: userId, status: 1 },
-      order: { created_at: 'DESC' }
-    });
-  
+  async showUserServices(bot: any, chatId: number, userId: number): Promise<void> {
+    const isMember = await this.channelMiddleware.ensureMembership(bot, userId, chatId);
+    if (!isMember) return;
+
+    const orders = await this.orderService.findApprovedByUser(userId);
     if (!orders.length) {
-      await this.botService.sendMessage(chatId, '📦 شما هنوز سرویسی خریداری نکرده‌اید.');
+      await this.sender.send(bot, chatId, '📦 شما هنوز سرویسی خریداری نکرده‌اید.');
       return;
     }
-  
-    const services = [];
-    for (const order of orders) {
-      const plan = await this.botService.planRepo.findOne({ where: { id: order.plan_id } });
-      if (plan) services.push({ id: order.id, name: plan.name });
-    }
-  
-    const inlineKeyboard = services.map(s => [{ text: `🛍️ ${s.name}`, callback_data: `service_detail_${s.id}` }]);
-    inlineKeyboard.push([{ text: '🔙 بازگشت', callback_data: 'main_menu' }]);
-  
-    await this.botService.sendMessage(chatId, '🛍️ سرویس‌های من\n\nلیست سرویس‌های فعال شما:', {
-      parse_mode: 'Markdown',
-      reply_markup: { inline_keyboard: inlineKeyboard }
+
+    const buttons = await Promise.all(
+      orders.map(async (order) => {
+        const plan = await this.planService.findById(order.plan_id);
+        return [{ text: `🛍️ ${plan?.name ?? order.plan_id}`, callback_data: `service_detail_${order.id}` }];
+      }),
+    );
+    buttons.push([{ text: '🔙 بازگشت', callback_data: 'main_menu' }]);
+
+    await this.sender.send(bot, chatId, '🛍️ سرویس‌های من\n\nلیست سرویس‌های فعال شما:', {
+      reply_markup: { inline_keyboard: buttons },
     });
   }
 
-  async handleSupport(chatId: number) {
-    const supportId = process.env.SUPPORT_ID;
-    
-    const message = 
+  async handleSupport(bot: any, chatId: number): Promise<void> {
+    const supportId = process.env.SUPPORT_ID ?? '';
+    await this.sender.send(
+      bot,
+      chatId,
       `💬 پشتیبانی و راهنمایی\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n` +
       `🤝 ساعات پاسخگویی:\n` +
@@ -176,13 +178,11 @@ export class UserHandler {
       `• پاسخگویی به ترتیب اولویت انجام می‌شود\n` +
       `• برای اطلاع از وضعیت سفارش، از بخش "سرویس‌های من" استفاده کنید\n` +
       `━━━━━━━━━━━━━━━━━━━━━━\n\n` +
-      `✨ ما همیشه کنار شما هستیم ✨`;
-  
-      await this.botService.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+      `✨ ما همیشه کنار شما هستیم ✨`,
+    );
   }
 
-  async handleHowToConnect(chatId: number) {
-    const guide = this.botService.messageHelper.getConnectionGuide();
-    await this.botService.sendMessage(chatId, guide, { parse_mode: 'Markdown' });
+  async handleHowToConnect(bot: any, chatId: number): Promise<void> {
+    await this.sender.send(bot, chatId, this.messageHelper.getConnectionGuide());
   }
 }

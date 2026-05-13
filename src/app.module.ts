@@ -5,17 +5,8 @@ import { User } from './modules/user/entities/user.entity';
 import { Plan } from './modules/plan/entities/plan.entity';
 import { Order } from './modules/order/entities/order.entity';
 import { Config } from './modules/config/entities/config.entity';
-import { UserModule } from './modules/user/user.module';
-import { PlanModule } from './modules/plan/plan.module';
-import { OrderModule } from './modules/order/order.module';
-import { ConfigModule as ConfigsModule } from './modules/config/config.module';
-import { CacheModule } from './modules/cache/cache.module';
-import { BotModule } from './modules/bot/bot.module';
-import { ChannelMiddleware } from './modules/telegram/middlewares/channel.middleware';
-import { AdminMiddleware } from './modules/telegram/middlewares/admin.middleware';
-import { PlanAdminService } from './modules/plan/plan.admin.service';
 import { Sub } from './modules/sub/entities/sub.entity';
-import { SubModule } from './modules/sub/sub.module';
+import { BotModule } from './modules/bot/bot.module';
 
 @Module({
   imports: [
@@ -31,16 +22,7 @@ import { SubModule } from './modules/sub/sub.module';
       synchronize: true,
       logging: false,
     }),
-    TypeOrmModule.forFeature([User, Plan, Order, Config, Sub]),
-    UserModule,
-    PlanModule,
-    OrderModule,
-    ConfigsModule,
-    CacheModule,
     BotModule,
-    SubModule
   ],
-  providers: [ChannelMiddleware, AdminMiddleware, PlanAdminService],
-  exports: [ChannelMiddleware, AdminMiddleware, PlanAdminService],
 })
 export class AppModule {}

@@ -1,136 +1,93 @@
-import { BotService } from '../bot.service';
+import { Injectable } from '@nestjs/common';
+import { PlanService } from '../../plan/services';
+import { AdminMiddleware } from '../../telegram/middlewares/admin.middleware';
+import { AdminStateManager } from '../states/admin.state';
+import { TelegramSender } from '../utils/telegram-sender';
 import { discountManagementKeyboard } from '../keyboards/admin.keyboard';
 
+@Injectable()
 export class DiscountHandler {
-  constructor(private readonly botService: BotService) {}
+  constructor(
+    private readonly planService: PlanService,
+    private readonly adminMiddleware: AdminMiddleware,
+    private readonly stateManager: AdminStateManager,
+    private readonly sender: TelegramSender,
+  ) {}
 
-  async showMenu(chatId: number, userId: number) {
-    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
-    
-    await this.botService.sendMessage(chatId, 
+  async showMenu(bot: any, chatId: number, userId: number): Promise<void> {
+    if (!this.adminMiddleware.isAdmin(userId)) return;
+    await this.sender.send(bot, chatId,
       `🏷️ **مدیریت تخفیف پلن‌ها**\n\n` +
       `• فعال‌سازی تخفیف: قیمت تخفیف‌دار جدید وارد می‌شود\n` +
       `• غیرفعال‌سازی تخفیف: تخفیف پلن حذف می‌شود`,
-      { parse_mode: 'Markdown', ...discountManagementKeyboard }
+      discountManagementKeyboard,
     );
   }
 
-  async showPlansForEnable(chatId: number, userId: number) {
-    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
-    
-    const plans = await this.botService.planRepo.find({ where: { is_active: true } });
-    if (!plans.length) {
-      await this.botService.sendMessage(chatId, '⚠️ هیچ پلن فعالی وجود ندارد.');
-      return;
-    }
-    
-    const planButtons = plans.map(plan => [
-      { text: `${plan.has_discount ? '🎁' : '❌'} ${plan.id}. ${plan.name}`, callback_data: `admin_discount_enable_${plan.id}` }
-    ]);
-    
-    await this.botService.sendMessage(chatId, '🎁 **فعال‌سازی تخفیف**\n\nلطفاً پلن مورد نظر را انتخاب کنید:', {
-      parse_mode: 'Markdown',
-      reply_markup: { inline_keyboard: [...planButtons, [{ text: '🔙 بازگشت', callback_data: 'admin_discount_menu' }]] }
-    });
+  async showPlansForEnable(bot: any, chatId: number, userId: number): Promise<void> {
+    if (!this.adminMiddleware.isAdmin(userId)) return;
+    const plans = await this.planService.findAll();
+    if (!plans.length) { await this.sender.send(bot, chatId, '⚠️ هیچ پلن فعالی وجود ندارد.'); return; }
+    const buttons = plans.map((p) => [{ text: `${p.has_discount ? '🎁' : '❌'} ${p.id}. ${p.name}`, callback_data: `admin_discount_enable_${p.id}` }]);
+    buttons.push([{ text: '🔙 بازگشت', callback_data: 'admin_discount_menu' }]);
+    await this.sender.send(bot, chatId, '🎁 **فعال‌سازی تخفیف**\n\nلطفاً پلن مورد نظر را انتخاب کنید:', { reply_markup: { inline_keyboard: buttons } });
   }
 
-  async showPlansForDisable(chatId: number, userId: number) {
-    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
-    
-    const plans = await this.botService.planRepo.find({ where: { has_discount: true, is_active: true } });
-    if (!plans.length) {
-      await this.botService.sendMessage(chatId, '⚠️ هیچ پلنی با تخفیف فعال وجود ندارد.');
-      return;
-    }
-    
-    const planButtons = plans.map(plan => [
-      { text: `🎁 ${plan.id}. ${plan.name}`, callback_data: `admin_discount_disable_${plan.id}` }
-    ]);
-    
-    await this.botService.sendMessage(chatId, '🚫 **غیرفعال‌سازی تخفیف**\n\nلطفاً پلن مورد نظر را انتخاب کنید:', {
-      parse_mode: 'Markdown',
-      reply_markup: { inline_keyboard: [...planButtons, [{ text: '🔙 بازگشت', callback_data: 'admin_discount_menu' }]] }
-    });
+  async showPlansForDisable(bot: any, chatId: number, userId: number): Promise<void> {
+    if (!this.adminMiddleware.isAdmin(userId)) return;
+    const plans = await this.planService.findDiscounted();
+    if (!plans.length) { await this.sender.send(bot, chatId, '⚠️ هیچ پلنی با تخفیف فعال وجود ندارد.'); return; }
+    const buttons = plans.map((p) => [{ text: `🎁 ${p.id}. ${p.name}`, callback_data: `admin_discount_disable_${p.id}` }]);
+    buttons.push([{ text: '🔙 بازگشت', callback_data: 'admin_discount_menu' }]);
+    await this.sender.send(bot, chatId, '🚫 **غیرفعال‌سازی تخفیف**\n\nلطفاً پلن مورد نظر را انتخاب کنید:', { reply_markup: { inline_keyboard: buttons } });
   }
 
-  async disableAllDiscounts(chatId: number, userId: number) {
-    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
-    
-    await this.botService.planRepo.update(
-      { has_discount: true },
-      { has_discount: false, discounted_price: null }
-    );
-    await this.botService.cache.invalidatePlans();
-    
-    await this.botService.sendMessage(chatId, '✅ تخفیف همه پلن‌ها غیرفعال شد.');
-  }
-
-  async enable(chatId: number, userId: number, planId: number) {
-    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
-    
-    const plan = await this.botService.planRepo.findOne({ where: { id: planId } });
-    if (!plan) {
-      await this.botService.sendMessage(chatId, '❌ پلن مورد نظر یافت نشد.');
-      return;
-    }
-    
-    this.botService.setAdminState(userId, { action: 'set_discount_price', planId: planId });
-    
-    await this.botService.sendMessage(chatId,
+  async enableDiscount(bot: any, chatId: number, userId: number, planId: number): Promise<void> {
+    if (!this.adminMiddleware.isAdmin(userId)) return;
+    const plan = await this.planService.findById(planId);
+    if (!plan) { await this.sender.send(bot, chatId, '❌ پلن مورد نظر یافت نشد.'); return; }
+    this.stateManager.set(userId, { action: 'set_discount_price', planId });
+    await this.sender.send(bot, chatId,
       `🎁 **فعال‌سازی تخفیف برای پلن: ${plan.name}**\n\n` +
       `💰 قیمت اصلی: ${plan.price.toLocaleString()} تومان\n\n` +
       `لطفاً قیمت تخفیف‌دار را به تومان وارد کنید:\n🔄 برای لغو: /cancel`,
-      { parse_mode: 'Markdown' }
     );
   }
 
-  async disable(chatId: number, userId: number, planId: number) {
-    if (!await this.botService.adminMiddleware.isAdmin(userId)) return;
-    
-    const plan = await this.botService.planRepo.findOne({ where: { id: planId } });
-    if (!plan) {
-      await this.botService.sendMessage(chatId, '❌ پلن مورد نظر یافت نشد.');
-      return;
+  async disableDiscount(bot: any, chatId: number, userId: number, planId: number): Promise<void> {
+    if (!this.adminMiddleware.isAdmin(userId)) return;
+    try {
+      const plan = await this.planService.disableDiscount(planId);
+      await this.sender.send(bot, chatId,
+        `✅ **تخفیف پلن "${plan.name}" با موفقیت غیرفعال شد!**\n💰 قیمت فعلی: ${plan.price.toLocaleString()} تومان`,
+      );
+    } catch (error) {
+      await this.sender.send(bot, chatId, `❌ ${error.message}`);
     }
-    
-    plan.has_discount = false;
-    plan.discounted_price = null;
-    await this.botService.planRepo.save(plan);
-    await this.botService.cache.invalidatePlans();
-    
-    await this.botService.sendMessage(chatId,
-      `✅ **تخفیف پلن "${plan.name}" با موفقیت غیرفعال شد!**\n💰 قیمت فعلی: ${plan.price.toLocaleString()} تومان`,
-      { parse_mode: 'Markdown' }
-    );
   }
 
-  async setDiscountPrice(chatId: number, userId: number, priceText: string) {
-    const state = this.botService.getAdminState(userId);
+  async disableAllDiscounts(bot: any, chatId: number, userId: number): Promise<void> {
+    if (!this.adminMiddleware.isAdmin(userId)) return;
+    await this.planService.disableAllDiscounts();
+    await this.sender.send(bot, chatId, '✅ تخفیف همه پلن‌ها غیرفعال شد.');
+  }
+
+  async setDiscountPrice(bot: any, chatId: number, userId: number, text: string): Promise<void> {
+    const state = this.stateManager.get(userId);
     if (!state || state.action !== 'set_discount_price') return;
-    
-    const price = parseInt(priceText);
-    if (isNaN(price) || price <= 0) {
-      await this.botService.sendMessage(chatId, '❌ لطفاً یک عدد معتبر وارد کنید.');
-      return;
+
+    const price = parseInt(text);
+    if (isNaN(price) || price <= 0) { await this.sender.send(bot, chatId, '❌ لطفاً یک عدد معتبر وارد کنید.'); return; }
+
+    try {
+      const plan = await this.planService.enableDiscount(state.planId, price);
+      await this.sender.send(bot, chatId,
+        `✅ **تخفیف با موفقیت فعال شد!**\n\n📦 پلن: ${plan.name}\n💰 قیمت اصلی: ${plan.price.toLocaleString()} تومان\n🎁 قیمت تخفیف‌دار: ${price.toLocaleString()} تومان`,
+      );
+    } catch (error) {
+      await this.sender.send(bot, chatId, `❌ ${error.message}`);
     }
-    
-    const plan = await this.botService.planRepo.findOne({ where: { id: state.planId } });
-    if (!plan) {
-      await this.botService.sendMessage(chatId, '❌ پلن مورد نظر یافت نشد.');
-      this.botService.clearAdminState(userId);
-      return;
-    }
-    
-    plan.has_discount = true;
-    plan.discounted_price = price;
-    await this.botService.planRepo.save(plan);
-    await this.botService.cache.invalidatePlans();
-    
-    await this.botService.sendMessage(chatId,
-      `✅ **تخفیف با موفقیت فعال شد!**\n\n📦 پلن: ${plan.name}\n💰 قیمت اصلی: ${plan.price.toLocaleString()} تومان\n🎁 قیمت تخفیف‌دار: ${price.toLocaleString()} تومان`,
-      { parse_mode: 'Markdown' }
-    );
-    
-    this.botService.clearAdminState(userId);
+
+    this.stateManager.clear(userId);
   }
 }

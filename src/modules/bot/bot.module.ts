@@ -1,38 +1,49 @@
 import { Module } from '@nestjs/common';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from '../user/entities/user.entity';
-import { Plan } from '../plan/entities/plan.entity';
-import { Order } from '../order/entities/order.entity';
-import { Config } from '../config/entities/config.entity';
-import { CacheModule } from '../cache/cache.module';
-import { CacheService } from '../cache/cache.service';
-import { ChannelMiddleware } from '../telegram/middlewares/channel.middleware';
-import { AdminMiddleware } from '../telegram/middlewares/admin.middleware';
-import { PlanAdminService } from '../plan/plan.admin.service';
-import { StockService } from '../stock/stock.service';
 import { BotService } from './bot.service';
-import { SubService } from '../sub/sub.service';
-import { StockCheckerService } from '../stock/stock.checker.service';
-import { Sub } from '../sub/entities/sub.entity';
+import { CallbackHandler } from './handlers/callback.handler';
+import { UserHandler } from './handlers/user.handler';
+import { OrderHandler } from './handlers/order.handler';
+import { PlanHandler } from './handlers/plan.handler';
+import { ConfigHandler } from './handlers/config.handler';
+import { DiscountHandler } from './handlers/discount.handler';
+import { SubHandler } from './handlers/sub.handler';
+import { ServiceHandler } from './handlers/service.handler';
+import { TelegramSender } from './utils/telegram-sender';
+import { MessageHelper } from './utils/message.utils';
+import { AdminStateManager } from './states/admin.state';
+import { UserModule } from '../user/user.module';
+import { PlanModule } from '../plan/plan.module';
+import { OrderModule } from '../order/order.module';
 import { SubModule } from '../sub/sub.module';
-import { PendingOrderCheckerService } from '../order/pending-order.checker.service';
+import { StockModule } from '../stock/stock.module';
+import { ConfigModule } from '../config/config.module';
+import { TelegramModule } from '../telegram/telegram.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Plan, Order, Config, Sub]),
-    CacheModule,
-    SubModule
+    UserModule,
+    PlanModule,
+    OrderModule,
+    SubModule,
+    StockModule,
+    ConfigModule,
+    TelegramModule,
   ],
   providers: [
+    // core
     BotService,
-    CacheService,
-    ChannelMiddleware,
-    AdminMiddleware,
-    PlanAdminService,
-    StockService,
-    SubService,
-    StockCheckerService,
-    PendingOrderCheckerService
+    AdminStateManager,
+    TelegramSender,
+    MessageHelper,
+    // handlers
+    CallbackHandler,
+    UserHandler,
+    OrderHandler,
+    PlanHandler,
+    ConfigHandler,
+    DiscountHandler,
+    SubHandler,
+    ServiceHandler,
   ],
   exports: [BotService],
 })

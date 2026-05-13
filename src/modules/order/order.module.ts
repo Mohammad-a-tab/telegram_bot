@@ -1,16 +1,13 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Order } from './entities/order.entity';
-import { OrderHandler } from '../bot/handlers/order.handler';
-import { PendingOrderCheckerService } from './pending-order.checker.service';
+import { OrderRepository } from './repositories';
+import { OrderService, PendingOrderCheckerService } from './services';
 import { CacheModule } from '../cache/cache.module';
 
 @Module({
-  imports: [
-    TypeOrmModule.forFeature([Order]),
-    CacheModule,
-  ],
-  providers: [OrderHandler, PendingOrderCheckerService],
-  exports: [OrderHandler, PendingOrderCheckerService, TypeOrmModule],
+  imports: [TypeOrmModule.forFeature([Order]), CacheModule],
+  providers: [OrderRepository, OrderService, PendingOrderCheckerService],
+  exports: [OrderRepository, OrderService, PendingOrderCheckerService],
 })
 export class OrderModule {}

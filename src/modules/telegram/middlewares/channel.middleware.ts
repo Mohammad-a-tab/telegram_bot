@@ -1,117 +1,62 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User } from '../../user/entities/user.entity';
+import { Injectable, Logger } from '@nestjs/common';
+import { UserService } from '../../user/services';
 
 @Injectable()
 export class ChannelMiddleware {
-  constructor(
-    @InjectRepository(User)
-    private userRepository: Repository<User>,
-  ) {}
+  private readonly logger = new Logger(ChannelMiddleware.name);
+  private readonly channelId = process.env.SPONSOR_CHANNEL_ID;
+  private readonly groupId = process.env.SPONSOR_GROUP_ID;
+  private readonly channelUsername = process.env.SPONSOR_CHANNEL_USERNAME;
+  private readonly groupUsername = process.env.SPONSOR_GROUP_USERNAME;
 
-  private isSponsorChat(chatId: number): boolean {
-    const sponsorChannelId = process.env.SPONSOR_CHANNEL_ID;
-    const sponsorGroupId = process.env.SPONSOR_GROUP_ID;
-    const chatIdStr = chatId.toString();
-    
-    return (sponsorChannelId && chatIdStr === sponsorChannelId) ||
-           (sponsorGroupId && chatIdStr === sponsorGroupId);
-  }
-
-  async checkMembership(bot: any, userId: number, chatId: number): Promise<boolean> {
-    const SPONSOR_CHANNEL_ID = process.env.SPONSOR_CHANNEL_ID;
-    const SPONSOR_GROUP_ID = process.env.SPONSOR_GROUP_ID;
-
-    if (!SPONSOR_CHANNEL_ID && !SPONSOR_GROUP_ID) {
-      console.error('❌ No channel or group configured');
-      return false;
-    }
-
-    let isChannelMember = true;
-    let isGroupMember = true;
-    let errorMessage = '';
-
-    if (SPONSOR_CHANNEL_ID) {
-      try {
-        const channelMember = await bot.getChatMember(SPONSOR_CHANNEL_ID, userId);
-        const channelStatus = channelMember.status;
-        isChannelMember = ['member', 'administrator', 'creator'].includes(channelStatus);
-        
-        if (!isChannelMember) {
-          errorMessage += `📢 کانال: ${process.env.SPONSOR_CHANNEL_USERNAME || 'کانال اسپانسر'}\n`;
-        }
-      } catch (error) {
-        console.error('Channel check error:', error.message);
-        isChannelMember = false;
-        errorMessage += `📢 کانال (خطا در بررسی)\n`;
-      }
-    }
-
-    if (SPONSOR_GROUP_ID) {
-      try {
-        const groupMember = await bot.getChatMember(SPONSOR_GROUP_ID, userId);
-        const groupStatus = groupMember.status;
-        isGroupMember = ['member', 'administrator', 'creator'].includes(groupStatus);
-        
-        if (!isGroupMember) {
-          errorMessage += `👥 گروه: ${process.env.SPONSOR_GROUP_USERNAME || 'گروه پشتیبانی'}\n`;
-        }
-      } catch (error) {
-        console.error('Group check error:', error.message);
-        isGroupMember = false;
-        errorMessage += `👥 گروه (خطا در بررسی)\n`;
-      }
-    }
-
-    const isMember = isChannelMember && isGroupMember;
-
-    await this.userRepository.update(
-      { id: userId },
-      { is_member_of_channel: isMember }
-    );
-
-    if (!isMember) {
-      const inlineKeyboard = [];
-      
-      inlineKeyboard.push([{ text: '🔄 بررسی مجدد عضویت', callback_data: 'check_membership' }]);
-      
-      if (SPONSOR_CHANNEL_ID && process.env.SPONSOR_CHANNEL_USERNAME) {
-        inlineKeyboard.push([{ text: '📢 عضویت در کانال', url: `https://t.me/${process.env.SPONSOR_CHANNEL_USERNAME}` }]);
-      }
-      
-      if (SPONSOR_GROUP_ID && process.env.SPONSOR_GROUP_USERNAME) {
-        inlineKeyboard.push([{ text: '👥 عضویت در گروه', url: `https://t.me/${process.env.SPONSOR_GROUP_USERNAME}` }]);
-      }
-
-      const message = `🔒 **دسترسی محدود شده است!**\n\n` +
-        `برای استفاده از ربات باید در مکان‌های زیر عضو باشید:\n\n` +
-        `${errorMessage}\n` +
-        `✅ پس از عضویت، دکمه "بررسی مجدد" را بزنید.`;
-
-      if (!this.isSponsorChat(chatId)) {
-        await bot.sendMessage(chatId, message, {
-          parse_mode: 'Markdown',
-          reply_markup: {
-            inline_keyboard: inlineKeyboard
-          }
-        });
-      }
-      
-      return false;
-    }
-
-    return true;
-  }
+  constructor(private readonly userService: UserService) {}
 
   async ensureMembership(bot: any, userId: number, chatId: number): Promise<boolean> {
-    const isMember = await this.checkMembership(bot, userId, chatId);
-    
-    await this.userRepository.update(
-      { id: userId },
-      { is_member_of_channel: isMember }
-    );
+    const isMember = await this.checkMembership(bot, userId);
+    await this.userService.updateMembership(userId, isMember);
+
+    if (!isMember) {
+      await this.sendJoinMessage(bot, chatId);
+    }
 
     return isMember;
+  }
+
+  private async checkMembership(bot: any, userId: number): Promise<boolean> {
+    const checks = await Promise.all([
+      this.checkChat(bot, userId, this.channelId),
+      this.checkChat(bot, userId, this.groupId),
+    ]);
+    return checks.every(Boolean);
+  }
+
+  private async checkChat(bot: any, userId: number, chatId?: string): Promise<boolean> {
+    if (!chatId) return true;
+    try {
+      const member = await bot.getChatMember(chatId, userId);
+      return ['member', 'administrator', 'creator'].includes(member.status);
+    } catch (error) {
+      this.logger.error(`Membership check failed for chat ${chatId}: ${error.message}`);
+      return false;
+    }
+  }
+
+  private async sendJoinMessage(bot: any, chatId: number): Promise<void> {
+    const buttons: any[] = [
+      [{ text: '🔄 بررسی مجدد عضویت', callback_data: 'check_membership' }],
+    ];
+
+    if (this.channelId && this.channelUsername) {
+      buttons.push([{ text: '📢 عضویت در کانال', url: `https://t.me/${this.channelUsername}` }]);
+    }
+    if (this.groupId && this.groupUsername) {
+      buttons.push([{ text: '👥 عضویت در گروه', url: `https://t.me/${this.groupUsername}` }]);
+    }
+
+    await bot.sendMessage(
+      chatId,
+      `🔒 برای استفاده از ربات باید در کانال/گروه ما عضو باشید.\n\nپس از عضویت دکمه بررسی مجدد را بزنید.`,
+      { reply_markup: { inline_keyboard: buttons } },
+    );
   }
 }

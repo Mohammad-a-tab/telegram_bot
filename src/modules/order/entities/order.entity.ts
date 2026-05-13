@@ -2,12 +2,9 @@ import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, Jo
 import { User } from '../../user/entities/user.entity';
 import { Config } from '../../config/entities/config.entity';
 import { Plan } from '../../plan/entities/plan.entity';
+import { OrderStatus } from '../../../common/enums';
 
-export enum OrderStatus {
-  PENDING = 0,
-  APPROVED = 1,
-  REJECTED = 2,
-}
+export { OrderStatus };
 
 @Entity('orders')
 @Index(['user_id', 'status'])
@@ -20,7 +17,7 @@ export class Order {
   @Index()
   user_id: number;
 
-  @Column({ type: 'int', nullable : true })
+  @Column({ type: 'int', nullable: true })
   @Index()
   config_id: number;
 
