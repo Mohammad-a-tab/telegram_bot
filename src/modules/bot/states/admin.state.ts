@@ -6,7 +6,8 @@ export type AdminAction =
   | 'add_sub'
   | 'edit_sub'
   | 'set_discount_price'
-  | 'waiting_for_receipt';
+  | 'waiting_for_receipt'
+  | 'broadcast';
 
 export interface AdminState {
   action: AdminAction;

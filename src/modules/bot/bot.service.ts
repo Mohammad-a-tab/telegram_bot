@@ -12,6 +12,7 @@ import { StockCheckerService } from '../stock/services';
 import { ReferralService } from '../referral/services/referral.service';
 import { ReferralHandler } from '../referral/handlers/referral.handler';
 import { CacheService } from '../cache/cache.service';
+import { BroadcastHandler } from './handlers/broadcast.handler';
 import { UserService } from '../user/services/user.service';
 
 @Injectable()
@@ -33,6 +34,7 @@ export class BotService {
     private readonly referralHandler: ReferralHandler,
     private readonly cacheService: CacheService,
     private readonly userService: UserService,
+    private readonly broadcastHandler: BroadcastHandler,
   ) {}
 
   async init(token: string): Promise<void> {
@@ -152,6 +154,9 @@ export class BotService {
       case 'waiting_for_receipt':
         await this.bot.sendMessage(chatId, '🖼 لطفاً تصویر رسید پرداخت را ارسال کنید (نه متن).');
         return;
+
+      case 'broadcast':
+        return this.broadcastHandler.processBroadcast(this.bot, chatId, userId, text);
     }
   }
 }

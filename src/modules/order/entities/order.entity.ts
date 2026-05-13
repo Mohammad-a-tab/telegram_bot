@@ -2,7 +2,7 @@ import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne, Jo
 import { User } from '../../user/entities/user.entity';
 import { Config } from '../../config/entities/config.entity';
 import { Plan } from '../../plan/entities/plan.entity';
-import { OrderStatus } from '../../../common/enums';
+import { OrderStatus, GiftReason } from '../../../common/enums';
 
 export { OrderStatus };
 
@@ -37,6 +37,15 @@ export class Order {
 
   @Column({ nullable: true, type: 'text' })
   admin_message_id: string;
+
+  /**
+   * Populated only for gifted orders (amount = 0).
+   * Tells you WHY this config was given for free.
+   * null → normal paid order.
+   */
+  @Column({ nullable: true, type: 'varchar', length: 32 })
+  @Index()
+  gift_reason: GiftReason | null;
 
   @CreateDateColumn()
   @Index()

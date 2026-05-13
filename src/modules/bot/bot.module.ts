@@ -8,6 +8,7 @@ import { ConfigHandler } from './handlers/config.handler';
 import { DiscountHandler } from './handlers/discount.handler';
 import { SubHandler } from './handlers/sub.handler';
 import { ServiceHandler } from './handlers/service.handler';
+import { BroadcastHandler } from './handlers/broadcast.handler';
 import { TelegramSender } from './utils/telegram-sender';
 import { MessageHelper } from './utils/message.utils';
 import { AdminStateManager } from './states/admin.state';
@@ -48,6 +49,7 @@ import { CacheModule } from '../cache/cache.module';
     DiscountHandler,
     SubHandler,
     ServiceHandler,
+    BroadcastHandler,
   ],
   exports: [BotService],
 })

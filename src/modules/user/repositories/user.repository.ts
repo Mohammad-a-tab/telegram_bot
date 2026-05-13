@@ -29,4 +29,9 @@ export class UserRepository {
   async updateMembership(id: number, isMember: boolean): Promise<void> {
     await this.repo.update({ id }, { is_member_of_channel: isMember });
   }
+
+  /** Returns all user IDs — used for broadcast */
+  findAllIds(): Promise<{ id: number }[]> {
+    return this.repo.find({ select: ['id'] });
+  }
 }

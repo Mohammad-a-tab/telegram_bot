@@ -9,6 +9,7 @@ import { ConfigHandler } from './config.handler';
 import { DiscountHandler } from './discount.handler';
 import { SubHandler } from './sub.handler';
 import { ServiceHandler } from './service.handler';
+import { BroadcastHandler } from './broadcast.handler';
 import { getMainKeyboard } from '../keyboards/main.keyboard';
 import { OrderStatus, BandwidthUnit } from '../../../common/enums';
 import { AdminStateManager } from '../states/admin.state';
@@ -29,6 +30,7 @@ export class CallbackHandler {
     private readonly subHandler: SubHandler,
     private readonly serviceHandler: ServiceHandler,
     private readonly referralHandler: ReferralHandler,
+    private readonly broadcastHandler: BroadcastHandler,
   ) {}
 
   async handle(bot: any, query: any): Promise<void> {
@@ -161,6 +163,8 @@ export class CallbackHandler {
       admin_enable_discount:        () => this.discountHandler.showPlansForEnable(bot, chatId, userId),
       admin_disable_discount:       () => this.discountHandler.showPlansForDisable(bot, chatId, userId),
       admin_disable_all_discounts:  () => this.discountHandler.disableAllDiscounts(bot, chatId, userId),
+
+      admin_broadcast:              () => this.broadcastHandler.startBroadcast(bot, chatId, userId),
 
       invite_friends:               () => this.referralHandler.showInvitePage(bot, chatId, userId),
       copy_invite_link:             () => this.referralHandler.sendInviteLink(bot, chatId, userId),

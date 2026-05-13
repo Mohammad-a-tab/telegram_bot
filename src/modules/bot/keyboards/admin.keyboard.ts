@@ -8,9 +8,10 @@ export const adminMainKeyboard = {
       [{ text: '⚙️ کانفیگ‌ها', callback_data: 'admin_configs_menu' }],
       [{ text: '📋 سفارشات', callback_data: 'admin_orders_menu' }],
       [{ text: '🏷️ تخفیف', callback_data: 'admin_discount_menu' }],
-      [{ text: '🔙 خروج', callback_data: 'admin_back' }]
-    ]
-  }
+      [{ text: '📢 پیام همگانی', callback_data: 'admin_broadcast' }],
+      [{ text: '🔙 خروج', callback_data: 'admin_back' }],
+    ],
+  },
 };
 
 export const plansManagementKeyboard = {

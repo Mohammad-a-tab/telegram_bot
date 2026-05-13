@@ -6,12 +6,12 @@ import { Order } from '../../order/entities/order.entity';
 import { Config } from '../../config/entities/config.entity';
 import { Plan } from '../../plan/entities/plan.entity';
 import { User } from '../../user/entities/user.entity';
-import { OrderStatus, BandwidthUnit } from '../../../common/enums';
+import { OrderStatus, BandwidthUnit, GiftReason } from '../../../common/enums';
 
 /** Milestone definitions: invite N friends → reward plan matched by bandwidth */
-const MILESTONES: { threshold: number; bandwidthValue: number; bandwidthUnit: BandwidthUnit }[] = [
-  { threshold: 3,  bandwidthValue: 100, bandwidthUnit: BandwidthUnit.MB },
-  { threshold: 10, bandwidthValue: 500, bandwidthUnit: BandwidthUnit.MB },
+const MILESTONES: { threshold: number; bandwidthValue: number; bandwidthUnit: BandwidthUnit; giftReason: GiftReason }[] = [
+  { threshold: 3,  bandwidthValue: 100, bandwidthUnit: BandwidthUnit.MB, giftReason: GiftReason.REFERRAL_3  },
+  { threshold: 10, bandwidthValue: 500, bandwidthUnit: BandwidthUnit.MB, giftReason: GiftReason.REFERRAL_10 },
 ];
 
 export interface ReferralRewardResult {
@@ -125,10 +125,10 @@ export class ReferralService {
         },
       });
       if (!plan) {
-        this.logger.warn(
-          `Reward plan ${milestone.bandwidthValue}${milestone.bandwidthUnit} not found or inactive`,
+        this.logger.error(
+          `Reward plan ${milestone.bandwidthValue}${milestone.bandwidthUnit} not found or inactive — rolling back so reward can be retried`,
         );
-        await queryRunner.commitTransaction();
+        await queryRunner.rollbackTransaction();
         return { awarded: false };
       }
 
@@ -138,8 +138,10 @@ export class ReferralService {
         lock: { mode: 'pessimistic_write' },
       });
       if (!config) {
-        this.logger.warn(`No available config for reward plan ${milestone.bandwidthValue}${milestone.bandwidthUnit}`);
-        await queryRunner.commitTransaction();
+        this.logger.error(
+          `No available config for reward plan ${milestone.bandwidthValue}${milestone.bandwidthUnit} — rolling back so reward can be retried`,
+        );
+        await queryRunner.rollbackTransaction();
         return { awarded: false };
       }
 
@@ -157,6 +159,7 @@ export class ReferralService {
         amount: 0,
         status: OrderStatus.APPROVED,
         approved_at: new Date(),
+        gift_reason: milestone.giftReason,
       });
       await queryRunner.manager.save(order);
 
