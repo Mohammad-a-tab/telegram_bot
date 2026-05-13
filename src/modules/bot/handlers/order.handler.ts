@@ -120,7 +120,9 @@ export class OrderHandler {
       const { order, config, plan } = await this.orderService.approveOrder(orderId);
 
       if (adminMessageId) {
-        await this.sender.editReplyMarkup(bot, adminChatId, parseInt(adminMessageId), { inline_keyboard: [] });
+        // The photo was sent to adminGroupId — always edit there, not the caller's chatId
+        const targetChatId = Number(process.env.ADMIN_GROUP_ID ?? adminChatId);
+        await this.sender.editReplyMarkup(bot, targetChatId, parseInt(adminMessageId), { inline_keyboard: [] });
       }
 
       const subLink = await this.subService.getSub();
@@ -169,7 +171,9 @@ export class OrderHandler {
       const order = await this.orderService.rejectOrder(orderId);
 
       if (adminMessageId) {
-        await this.sender.editReplyMarkup(bot, adminChatId, parseInt(adminMessageId), { inline_keyboard: [] });
+        // The photo was sent to adminGroupId — always edit there, not the caller's chatId
+        const targetChatId = Number(process.env.ADMIN_GROUP_ID ?? adminChatId);
+        await this.sender.editReplyMarkup(bot, targetChatId, parseInt(adminMessageId), { inline_keyboard: [] });
       }
 
       await this.sender.send(

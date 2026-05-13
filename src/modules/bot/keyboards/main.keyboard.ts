@@ -1,15 +1,8 @@
-import { FeatureGuard } from '../utils/feature-guard';
-
-export const getMainKeyboard = (isAdmin: boolean = false, userId?: number) => {
-  // const showInvite = userId !== undefined ? FeatureGuard.isAllowed(userId) : false;
-
+export const getMainKeyboard = (isAdmin: boolean = false, _userId?: number) => {
   const keyboardRows: { text: string }[][] = [
     [{ text: '🛒 خرید VPN' }],
     [{ text: '💬 پشتیبانی' }, { text: '🛍️ سرویس‌های من' }],
-    [{ text: '🔧 نحوه اتصال' }],
-    // showInvite
-      // ? [{ text: '🔧 نحوه اتصال' }, { text: '👥 دعوت از دوستان' }]
-      // : 
+    [{ text: '🔧 نحوه اتصال' }, { text: '👥 دعوت از دوستان' }],
   ];
 
   if (isAdmin) {

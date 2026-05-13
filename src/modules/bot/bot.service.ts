@@ -12,8 +12,7 @@ import { StockCheckerService } from '../stock/services';
 import { ReferralService } from '../referral/services/referral.service';
 import { ReferralHandler } from '../referral/handlers/referral.handler';
 import { CacheService } from '../cache/cache.service';
-
-import { FeatureGuard } from './utils/feature-guard';
+import { UserService } from '../user/services/user.service';
 
 @Injectable()
 export class BotService {
@@ -33,6 +32,7 @@ export class BotService {
     private readonly referralService: ReferralService,
     private readonly referralHandler: ReferralHandler,
     private readonly cacheService: CacheService,
+    private readonly userService: UserService,
   ) {}
 
   async init(token: string): Promise<void> {
@@ -58,14 +58,18 @@ export class BotService {
   private registerHandlers(): void {
     const b = this.bot;
 
-    b.onText(/\/start(?:\s+(.+))?/, (m, match) => {
+    b.onText(/\/start(?:\s+(.+))?/, async (m, match) => {
       this.stateManager.clear(m.from.id);
       const payload = match?.[1]?.trim();
       const refCode = payload ? this.referralService.parseStartPayload(payload) : null;
       if (refCode) {
-        // Store pending ref code — resolved to inviter id after membership confirm
-        const key = this.referralService.getPendingKey(m.from.id);
-        this.cacheService.set(key, { refCode }, 60 * 60).catch(() => {});
+        // Only treat as a new invite if the user doesn't already exist in the DB.
+        // Existing users who left and rejoined the channel must not count as referrals.
+        const existingUser = await this.userService.findById(m.from.id);
+        if (!existingUser) {
+          const key = this.referralService.getPendingKey(m.from.id);
+          this.cacheService.set(key, { refCode }, 60 * 60).catch(() => {});
+        }
       }
       this.userHandler.handleStart(b, m.chat.id, m.from.id, m.from.first_name, m.from.last_name);
     });
@@ -85,10 +89,10 @@ export class BotService {
       this.stateManager.clear(m.from.id);
       this.userHandler.handleHowToConnect(b, m.chat.id);
     });
-    // b.onText(/👥 دعوت از دوستان/, (m) => {
-    //   this.stateManager.clear(m.from.id);
-    //   this.referralHandler.showInvitePage(b, m.chat.id, m.from.id).catch((e) => this.logger.error(e.message));
-    // });
+    b.onText(/👥 دعوت از دوستان/, (m) => {
+      this.stateManager.clear(m.from.id);
+      this.referralHandler.showInvitePage(b, m.chat.id, m.from.id).catch((e) => this.logger.error(e.message));
+    });
     b.onText(/🛠 پنل مدیریت/, (m) => {
       this.stateManager.clear(m.from.id);
       this.planHandler.showPanel(b, m.chat.id, m.from.id);

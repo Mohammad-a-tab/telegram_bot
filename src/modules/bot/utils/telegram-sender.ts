@@ -32,10 +32,21 @@ export class TelegramSender {
   }
 
   async editReplyMarkup(bot: any, chatId: number, messageId: number, markup: any): Promise<void> {
+    if (!chatId || !messageId) return;
     try {
       await bot.editMessageReplyMarkup(markup, { chat_id: chatId, message_id: messageId });
     } catch (error) {
-      this.logger.error(`editMessageReplyMarkup failed: ${error.message}`);
+      const msg: string = error?.message ?? '';
+      // These are expected non-fatal cases: message already edited, deleted, or too old
+      const isExpected =
+        msg.includes('message to edit not found') ||
+        msg.includes('message is not modified') ||
+        msg.includes('MESSAGE_ID_INVALID');
+      if (isExpected) {
+        this.logger.warn(`editMessageReplyMarkup skipped (${msg}) — chat: ${chatId}, msg: ${messageId}`);
+      } else {
+        this.logger.error(`editMessageReplyMarkup failed: ${msg}`);
+      }
     }
   }
 }
