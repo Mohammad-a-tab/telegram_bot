@@ -124,7 +124,11 @@ export class OrderHandler {
       }
 
       const subLink = await this.subService.getSub();
-      const finalLink = `${subLink ?? ''}${config.config_link}`;
+      const isDirectLink = config.config_link.startsWith('vmess://') ||
+        config.config_link.startsWith('vless://') ||
+        config.config_link.startsWith('trojan://') ||
+        config.config_link.startsWith('ss://');
+      const finalLink = isDirectLink ? config.config_link : `${subLink ?? ''}${config.config_link}`;
 
       await this.sender.send(
         bot,
@@ -228,7 +232,13 @@ export class OrderHandler {
     }
 
     const subLink = await this.subService.getSub();
-    const finalLink = `${subLink ?? ''}${order.config?.config_link ?? ''}`;
+    const isDirectLink = order.config?.config_link?.startsWith('vmess://') ||
+      order.config?.config_link?.startsWith('vless://') ||
+      order.config?.config_link?.startsWith('trojan://') ||
+      order.config?.config_link?.startsWith('ss://');
+    const finalLink = isDirectLink
+      ? (order.config?.config_link ?? '')
+      : `${subLink ?? ''}${order.config?.config_link ?? ''}`;
 
     await this.sender.send(
       bot,

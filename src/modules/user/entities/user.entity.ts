@@ -18,6 +18,10 @@ export class User {
   @Index()
   username: string;
 
+  @Column({ nullable: true, unique: true, length: 10 })
+  @Index()
+  ref_code: string;
+
   @Column({ default: false })
   is_member_of_channel: boolean;
 
