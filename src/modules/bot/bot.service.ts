@@ -61,6 +61,7 @@ export class BotService {
     const b = this.bot;
 
     b.onText(/\/start(?:\s+(.+))?/, async (m, match) => {
+      if (m.chat.type !== 'private') return;
       this.stateManager.clear(m.from.id);
       const payload = match?.[1]?.trim();
       const refCode = payload ? this.referralService.parseStartPayload(payload) : null;
@@ -76,18 +77,22 @@ export class BotService {
       this.userHandler.handleStart(b, m.chat.id, m.from.id, m.from.first_name, m.from.last_name);
     });
     b.onText(/🛒 خرید VPN/, (m) => {
+      if (m.chat.type !== 'private') return;
       this.stateManager.clear(m.from.id);
       this.userHandler.showPlans(b, m.chat.id, m.from.id, m.from.username, m.from.first_name, m.from.last_name);
     });
     b.onText(/🛍️ سرویس‌های من/, (m) => {
+      if (m.chat.type !== 'private') return;
       this.stateManager.clear(m.from.id);
       this.userHandler.showUserServices(b, m.chat.id, m.from.id);
     });
     b.onText(/💬 پشتیبانی/, (m) => {
+      if (m.chat.type !== 'private') return;
       this.stateManager.clear(m.from.id);
       this.userHandler.handleSupport(b, m.chat.id);
     });
     b.onText(/🔧 نحوه اتصال/, (m) => {
+      if (m.chat.type !== 'private') return;
       this.stateManager.clear(m.from.id);
       this.userHandler.handleHowToConnect(b, m.chat.id);
     });
@@ -96,6 +101,7 @@ export class BotService {
     //   this.referralHandler.showInvitePage(b, m.chat.id, m.from.id).catch((e) => this.logger.error(e.message));
     // });
     b.onText(/🛠 پنل مدیریت/, (m) => {
+      if (m.chat.type !== 'private') return;
       this.stateManager.clear(m.from.id);
       this.planHandler.showPanel(b, m.chat.id, m.from.id);
     });
@@ -103,15 +109,20 @@ export class BotService {
     b.on('callback_query', (q) =>
       this.callbackHandler.handle(b, q).catch((e) => this.logger.error(e.message)),
     );
-    b.on('photo', (m) =>
-      this.orderHandler.handleReceipt(b, m).catch((e) => this.logger.error(e.message)),
-    );
-    b.on('message', (m) =>
-      this.handleTextMessage(m).catch((e) => this.logger.error(e.message)),
-    );
+    b.on('photo', (m) => {
+      if (m.chat.type !== 'private') return;
+      this.orderHandler.handleReceipt(b, m).catch((e) => this.logger.error(e.message));
+    });
+    b.on('message', (m) => {
+      if (m.chat.type !== 'private') return;
+      this.handleTextMessage(m).catch((e) => this.logger.error(e.message));
+    });
   }
 
   private async handleTextMessage(msg: any): Promise<void> {
+    // Only handle messages from private chats — ignore group/channel messages
+    if (msg.chat.type !== 'private') return;
+
     const chatId: number = msg.chat.id;
     const userId: number = msg.from.id;
     const text: string = msg.text;
