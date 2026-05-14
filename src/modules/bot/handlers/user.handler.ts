@@ -69,10 +69,7 @@ export class UserHandler {
     await this.sender.send(
       bot,
       chatId,
-      `🛒 **خرید VPN**\n\n` +
-      `🎉 **جشنواره ۳ روزه تخفیف‌های ویژه** 🎉\n` +
-      `به مناسبت جشنواره، تمام پلن‌ها با تخفیف ویژه عرضه می‌شوند.\n` +
-      `فرصت رو از دست ندهید! 🚀\n\n` +
+      `🛒 خرید VPN\n\n` +
       `👇 لطفاً یکی از پلن‌های زیر را انتخاب کنید:`,
       { reply_markup: { inline_keyboard: planButtons } },
     );
