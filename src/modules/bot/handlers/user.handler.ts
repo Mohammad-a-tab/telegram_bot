@@ -60,7 +60,7 @@ export class UserHandler {
     const planButtons = plans.map((plan) => [{
       text: plan.has_discount && plan.discounted_price
         ? `🌟 ${plan.name} | 🏷️ ${plan.discounted_price.toLocaleString()} 🔥`
-        : `💎 ${plan.name} | 💰 ${plan.price.toLocaleString()}`,
+        : `💎 ${plan.name} | ${plan.price.toLocaleString()} ✨`,
       callback_data: `plan_${plan.id}`,
     }]);
 
