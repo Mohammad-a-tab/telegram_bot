@@ -11,7 +11,7 @@ import { OrderStatus, BandwidthUnit, GiftReason } from '../../../common/enums';
 /** Milestone definitions: invite N friends → reward plan matched by bandwidth */
 const MILESTONES: { threshold: number; bandwidthValue: number; bandwidthUnit: BandwidthUnit; giftReason: GiftReason }[] = [
   { threshold: 3,  bandwidthValue: 100, bandwidthUnit: BandwidthUnit.MB, giftReason: GiftReason.REFERRAL_3  },
-  { threshold: 10, bandwidthValue: 500, bandwidthUnit: BandwidthUnit.MB, giftReason: GiftReason.REFERRAL_10 },
+  { threshold: 12, bandwidthValue: 500, bandwidthUnit: BandwidthUnit.MB, giftReason: GiftReason.REFERRAL_12 },
 ];
 
 export interface ReferralRewardResult {

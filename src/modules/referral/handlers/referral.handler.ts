@@ -16,14 +16,17 @@ export class ReferralHandler {
     const link = this.referralService.getInviteLink(refCode);
     const count = await this.referralService.getInviteCount(userId);
 
-    const nextMilestone = count < 3 ? 3 : count < 10 ? 10 : null;
-    const nextPlan = count < 3 ? '100 مگ' : count < 10 ? '500 مگ' : null;
+    const nextMilestone = count < 3 ? 3 : count < 12 ? 12 : null;
+    const nextPlan = count < 3 ? '100 مگ' : count < 12 ? '500 مگ' : null;
     const remaining = nextMilestone ? nextMilestone - count : 0;
 
     let progressText = '';
     if (nextMilestone) {
-      const filled = '🟢'.repeat(count < 3 ? count : count - 3);
-      const empty  = '⚪'.repeat(remaining);
+      const prevMilestone = nextMilestone === 3 ? 0 : 3;
+      const progressInStage = count - prevMilestone;
+      const stageSize = nextMilestone - prevMilestone;
+      const filled = '🟢'.repeat(progressInStage);
+      const empty  = '⚪'.repeat(stageSize - progressInStage);
       progressText =
         `\n\n📊 پیشرفت شما:\n${filled}${empty} (${count}/${nextMilestone})\n` +
         `⏳ ${remaining} دعوت دیگر تا دریافت پلن ${nextPlan} رایگان`;
@@ -36,7 +39,7 @@ export class ReferralHandler {
       `با دعوت دوستانت به ربات، پلن رایگان دریافت کن!\n\n` +
       `🎯 جوایز:\n` +
       `• دعوت ۳ نفر → پلن 100 مگ رایگان 🎉\n` +
-      `• دعوت ۱۰ نفر → پلن 500 مگ رایگان 🏆\n\n` +
+      `• دعوت ۱۲ نفر → پلن 500 مگ رایگان 🏆\n\n` +
       `👥 تعداد دعوت‌های موفق شما: ${count} نفر` +
       progressText +
       `\n\n🔗 لینک اختصاصی شما:\n<code>${link}</code>\n\n` +
