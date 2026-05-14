@@ -36,6 +36,7 @@ export class UserHandler {
       `🎉 به ربات فروش VPN خوش اومدی!\n\n` +
       `🔐 **ویژگی‌های ما:**\n` +
       `• پایدار و قابل اعتماد\n` +
+      `• اشتراک بدون ضریب\n` +
       `• سرعت بالا با سرور اختصاصی\n` +
       `• پشتیبانی ۲۴ ساعته\n` +
       `• پلن‌های متنوع و مقرون‌به‌صرفه\n\n` +
@@ -56,15 +57,12 @@ export class UserHandler {
       return;
     }
 
-    const planButtons = plans.map((plan) => {
-      let text: string;
-      if (plan.has_discount && plan.discounted_price) {
-        text = `📦 ${plan.name} 💰${plan.price.toLocaleString()} ← 💎${plan.discounted_price.toLocaleString()} 🔥`;
-      } else {
-        text = `📦 ${plan.name} 💰${plan.price.toLocaleString()}`;
-      }
-      return [{ text, callback_data: `plan_${plan.id}` }];
-    });
+    const planButtons = plans.map((plan) => [{
+      text: plan.has_discount && plan.discounted_price
+        ? `🌟 ${plan.name} | 🏷️ ${plan.discounted_price.toLocaleString()} 🔥`
+        : `💎 ${plan.name} | 💰 ${plan.price.toLocaleString()}`,
+      callback_data: `plan_${plan.id}`,
+    }]);
 
     await this.sender.send(
       bot,
