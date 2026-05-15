@@ -21,7 +21,8 @@ export class ServiceHandler {
     if (!isMember) return;
 
     const order = await this.orderService.findByIdWithRelations(orderId);
-    if (!order || order.user_id !== userId || order.status !== OrderStatus.APPROVED) {
+    // user_id is stored as bigint and TypeORM returns it as a string — coerce before comparing
+    if (!order || Number(order.user_id) !== userId || order.status !== OrderStatus.APPROVED) {
       await this.sender.send(bot, chatId, '❌ سرویس مورد نظر یافت نشد یا فعال نیست.');
       return;
     }
