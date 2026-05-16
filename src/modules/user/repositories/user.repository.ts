@@ -30,6 +30,10 @@ export class UserRepository {
     await this.repo.update({ id }, { is_member_of_channel: isMember });
   }
 
+  findByUsername(username: string): Promise<User | null> {
+    return this.repo.findOne({ where: { username } });
+  }
+
   /** Returns all user IDs — used for broadcast */
   findAllIds(): Promise<{ id: number }[]> {
     return this.repo.find({ select: ['id'] });

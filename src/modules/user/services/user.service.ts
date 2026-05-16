@@ -15,6 +15,10 @@ export class UserService {
     return this.userRepository.findById(id);
   }
 
+  findByUsername(username: string): Promise<User | null> {
+    return this.userRepository.findByUsername(username);
+  }
+
   findByRefCode(refCode: string): Promise<User | null> {
     return this.userRepository.findByRefCode(refCode);
   }

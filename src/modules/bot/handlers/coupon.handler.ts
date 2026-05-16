@@ -1,16 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { CouponService } from '../../coupon/services/coupon.service';
 import { PlanService } from '../../plan/services';
+import { UserService } from '../../user/services/user.service';
 import { AdminMiddleware } from '../../telegram/middlewares/admin.middleware';
 import { AdminStateManager } from '../states/admin.state';
 import { TelegramSender } from '../utils/telegram-sender';
-import { DiscountCode } from '../../coupon/entities/coupon.entity';
 
 @Injectable()
 export class CouponHandler {
   constructor(
     private readonly couponService: CouponService,
     private readonly planService: PlanService,
+    private readonly userService: UserService,
     private readonly adminMiddleware: AdminMiddleware,
     private readonly stateManager: AdminStateManager,
     private readonly sender: TelegramSender,
@@ -80,8 +81,8 @@ export class CouponHandler {
       data.maxUses = maxUses;
       this.stateManager.set(userId, { action: 'coupon_create', step: 3, data });
       await this.sender.send(bot, chatId,
-        `مرحله ۳/۴\n👤 آیدی عددی تلگرام کاربر خاص را وارد کنید.\n` +
-        `اگر برای همه کاربران است، عدد <b>0</b> را ارسال کنید:`,
+        `مرحله ۳/۴\n👤 یوزرنیم کاربر خاص را وارد کنید (بدون @).\n` +
+        `اگر برای همه کاربران است، کلمه <b>all</b> را ارسال کنید:`,
         {
           parse_mode: 'HTML',
           reply_markup: { inline_keyboard: [[{ text: '❌ لغو', callback_data: 'admin_coupon_menu' }]] },
@@ -91,12 +92,23 @@ export class CouponHandler {
     }
 
     if (step === 3) {
-      const uid = parseInt(text);
-      if (isNaN(uid) || uid < 0) {
-        await this.sender.send(bot, chatId, '❌ آیدی عددی معتبر وارد کنید یا 0 برای همه.');
-        return;
+      const input = text.trim().replace(/^@/, '').toLowerCase();
+      let restrictedUserId: number | null = null;
+
+      if (input !== 'all') {
+        const user = await this.userService.findByUsername(input);
+        if (!user) {
+          await this.sender.send(bot, chatId,
+            `❌ کاربری با یوزرنیم <b>@${input}</b> در ربات یافت نشد.\n` +
+            `کاربر باید حداقل یک بار ربات را استارت زده باشد.\n\nدوباره وارد کنید یا <b>all</b> برای همه:`,
+            { parse_mode: 'HTML', reply_markup: { inline_keyboard: [[{ text: '❌ لغو', callback_data: 'admin_coupon_menu' }]] } },
+          );
+          return;
+        }
+        restrictedUserId = user.id;
       }
-      data.restrictedUserId = uid === 0 ? null : uid;
+
+      data.restrictedUserId = restrictedUserId;
       this.stateManager.set(userId, { action: 'coupon_create', step: 4, data });
 
       const plans = await this.planService.findAll();
@@ -131,7 +143,9 @@ export class CouponHandler {
           planIds,
         });
 
-        const forUser = coupon.restricted_user_id ? `فقط برای آیدی ${coupon.restricted_user_id}` : 'همه کاربران';
+        const forUser = coupon.restricted_user_id
+          ? await this.userService.findById(Number(coupon.restricted_user_id)).then(u => u?.username ? `@${u.username}` : `ID: ${coupon.restricted_user_id}`)
+          : 'همه کاربران';
         const forPlans = coupon.plan_ids ? `پلن‌های ${coupon.plan_ids}` : 'همه پلن‌ها';
 
         await this.sender.send(bot, chatId,
@@ -184,7 +198,9 @@ export class CouponHandler {
     const c = await this.couponService.findById(couponId);
     if (!c) { await this.sender.send(bot, chatId, '❌ کد تخفیف یافت نشد.'); return; }
 
-    const forUser = c.restricted_user_id ? `فقط آیدی ${c.restricted_user_id}` : 'همه کاربران';
+    const forUser = c.restricted_user_id
+      ? await this.userService.findById(Number(c.restricted_user_id)).then(u => u?.username ? `@${u.username}` : `ID: ${c.restricted_user_id}`)
+      : 'همه کاربران';
     const forPlans = c.plan_ids ? `پلن‌های ${c.plan_ids}` : 'همه پلن‌ها';
 
     await this.sender.send(bot, chatId,
