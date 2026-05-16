@@ -302,7 +302,6 @@ export class CouponHandler {
       planId,
       data: { couponId: result.coupon!.id, couponCode: result.coupon!.code, couponPercent: result.coupon!.percent },
     });
-
     const plan = await this.planService.findById(planId);
     if (!plan) { await this.sender.send(bot, chatId, '❌ پلن یافت نشد.'); return; }
 

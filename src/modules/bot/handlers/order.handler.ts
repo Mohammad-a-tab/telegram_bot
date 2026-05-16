@@ -80,12 +80,20 @@ export class OrderHandler {
         ? `@${msg.from.username}`
         : `[${msg.from.first_name}](tg://user?id=${userId})`;
 
+      const fmt = (p: number) => (p * 1000).toLocaleString('en-US');
+      const discountLines = couponData?.couponPercent
+        ? `💰 قیمت اصلی: ${fmt(basePrice)} تومان\n` +
+          `🏷️ تخفیف (${couponData.couponPercent}%): -${fmt(basePrice - finalAmount)} تومان\n` +
+          `✅ مبلغ پرداختی: <b>${fmt(finalAmount)} تومان</b>\n` +
+          `🎟 کد تخفیف: <code>${(state.data as any)?.couponCode ?? ''}</code>\n`
+        : `💰 مبلغ: ${fmt(finalAmount)} تومان\n`;
+
       const caption =
         `🆕 <b>سفارش جدید!</b>\n\n` +
         `👤 کاربر: ${username}\n` +
         `🆔 آیدی: <code>${userId}</code>\n` +
         `📦 پلن: ${plan.name}\n` +
-        `💰 مبلغ: ${order.amount.toLocaleString()} تومان\n` +
+        discountLines +
         `🆔 شماره سفارش: #${order.id}\n` +
         `📅 تاریخ: ${new Date().toLocaleDateString('fa-IR')}`;
 
