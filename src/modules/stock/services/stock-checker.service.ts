@@ -12,13 +12,13 @@ export class StockCheckerService {
     private readonly stockService: StockService,
   ) {}
 
-  startChecking(bot: any, adminGroupId: string): void {
+  startChecking(bot: any, reportsChannelId: string): void {
     this.logger.log('Stock checker started — interval: 55 minutes');
-    this.checkAndNotify(bot, adminGroupId);
-    setInterval(() => this.checkAndNotify(bot, adminGroupId), StockCheckInterval.STOCK_CHECKER_MS);
+    this.checkAndNotify(bot, reportsChannelId);
+    setInterval(() => this.checkAndNotify(bot, reportsChannelId), StockCheckInterval.STOCK_CHECKER_MS);
   }
 
-  async checkAndNotify(bot: any, adminGroupId: string): Promise<void> {
+  async checkAndNotify(bot: any, reportsChannelId: string): Promise<void> {
     try {
       const plans = await this.planRepository.findActive();
 
@@ -44,13 +44,13 @@ export class StockCheckerService {
         message += '\n';
       }
 
-      if (hasLowStock && adminGroupId) {
-        await bot.sendMessage(adminGroupId, message, { parse_mode: 'Markdown' });
+      if (hasLowStock && reportsChannelId) {
+        await bot.sendMessage(reportsChannelId, message, { parse_mode: 'Markdown' });
       }
     } catch (error) {
       this.logger.error(`Stock check failed: ${error.message}`);
-      if (adminGroupId) {
-        await bot.sendMessage(adminGroupId, `❌ خطا در بررسی موجودی: ${error.message}`);
+      if (reportsChannelId) {
+        await bot.sendMessage(reportsChannelId, `❌ خطا در بررسی موجودی: ${error.message}`);
       }
     }
   }

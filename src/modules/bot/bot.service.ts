@@ -43,9 +43,9 @@ export class BotService {
     this.bot = new TelegramBot(token, { polling: true });
     this.registerHandlers();
 
-    const adminGroupId = process.env.ADMIN_GROUP_ID;
-    if (adminGroupId) {
-      this.stockChecker.startChecking(this.bot, adminGroupId);
+    const reportsChannelId = process.env.REPORTS_CHANNEL_ID;
+    if (reportsChannelId) {
+      this.stockChecker.startChecking(this.bot, reportsChannelId);
     }
 
     this.logger.log('Telegram bot started');
