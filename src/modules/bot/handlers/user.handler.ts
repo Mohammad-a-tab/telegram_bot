@@ -9,6 +9,7 @@ import { AdminStateManager } from '../states/admin.state';
 import { MessageHelper } from '../utils/message.utils';
 import { TelegramSender } from '../utils/telegram-sender';
 import { getMainKeyboard } from '../keyboards/main.keyboard';
+import { CouponHandler } from './coupon.handler';
 
 @Injectable()
 export class UserHandler {
@@ -22,6 +23,7 @@ export class UserHandler {
     private readonly stateManager: AdminStateManager,
     private readonly sender: TelegramSender,
     private readonly messageHelper: MessageHelper,
+    private readonly couponHandler: CouponHandler,
   ) {}
 
   async handleStart(bot: any, chatId: number, userId: number, firstName: string, lastName?: string): Promise<void> {
@@ -94,7 +96,6 @@ export class UserHandler {
       return;
     }
 
-    /** Fix: use StockService.canPurchase() — correct stock check, not plan cache */
     const canPurchase = await this.stockService.canPurchase(planId);
     if (!canPurchase) {
       await this.sender.send(bot, chatId, '⚠️ متأسفانه این پلن به اتمام رسیده است.');
@@ -103,31 +104,8 @@ export class UserHandler {
 
     await this.userService.upsert(userId, username, firstName, lastName);
 
-    const finalPrice = this.planService.getEffectivePrice(plan);
-    const cardNumber = process.env.CARD_NUMBER ?? '**********';
-    const fmt = (p: number) => (p * 1000).toLocaleString('en-US');
-
-    const message =
-      `💳 اطلاعات پرداخت\n\n` +
-      `📦 پلن: ${plan.name}\n` +
-      `💰 قیمت اصلی: ${fmt(plan.price)} تومان\n` +
-      `✅ مبلغ نهایی: ${fmt(finalPrice)} تومان\n\n` +
-      `💳 شماره کارت:\n${cardNumber}\n\n` +
-      `👤 صاحب کارت:\n${process.env.CARD_HOLDER ?? 'نرگس کارگران'}\n\n` +
-      `💰 مبلغ قابل پرداخت:\n` +
-      `${fmt(finalPrice)} تومان\n\n` +
-      `🖼 پس از پرداخت، تصویر رسید را ارسال کنید.`;
-
-    const sent = await this.sender.send(bot, chatId, message, {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: '📤 ارسال رسید', callback_data: `send_receipt_${planId}` }],
-          [{ text: '🔙 بازگشت', callback_data: 'buy' }],
-        ],
-      },
-    });
-
-    this.stateManager.set(userId, { action: 'waiting_for_receipt', planId, messageId: sent?.message_id });
+    // Route through coupon step before showing payment info
+    await this.couponHandler.askForCoupon(bot, chatId, userId, planId);
   }
 
   async showUserServices(bot: any, chatId: number, userId: number): Promise<void> {

@@ -38,6 +38,10 @@ export class Order {
   @Column({ nullable: true, type: 'text' })
   admin_message_id: string;
 
+  /** ID of the discount code used for this order, if any */
+  @Column({ type: 'int', nullable: true })
+  discount_code_id: number | null;
+
   /**
    * Populated only for gifted orders (amount = 0).
    * Tells you WHY this config was given for free.

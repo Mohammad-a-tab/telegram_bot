@@ -7,6 +7,8 @@ export type AdminAction =
   | 'edit_sub'
   | 'set_discount_price'
   | 'waiting_for_receipt'
+  | 'waiting_for_coupon'
+  | 'coupon_create'
   | 'broadcast';
 
 export interface AdminState {

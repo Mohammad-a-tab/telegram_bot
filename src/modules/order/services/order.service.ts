@@ -74,6 +74,7 @@ export class OrderService {
         plan_id: dto.planId,
         amount: dto.amount,
         payment_receipt_file_id: dto.paymentReceiptFileId,
+        discount_code_id: dto.discountCodeId ?? null,
         status: OrderStatus.PENDING,
       });
 

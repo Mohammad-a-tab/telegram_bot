@@ -6,6 +6,7 @@ import { OrderHandler } from './handlers/order.handler';
 import { PlanHandler } from './handlers/plan.handler';
 import { ConfigHandler } from './handlers/config.handler';
 import { DiscountHandler } from './handlers/discount.handler';
+import { CouponHandler } from './handlers/coupon.handler';
 import { SubHandler } from './handlers/sub.handler';
 import { ServiceHandler } from './handlers/service.handler';
 import { BroadcastHandler } from './handlers/broadcast.handler';
@@ -22,6 +23,7 @@ import { ConfigModule } from '../config/config.module';
 import { TelegramModule } from '../telegram/telegram.module';
 import { ReferralModule } from '../referral/referral.module';
 import { CacheModule } from '../cache/cache.module';
+import { CouponModule } from '../coupon/coupon.module';
 
 @Module({
   imports: [
@@ -34,20 +36,20 @@ import { CacheModule } from '../cache/cache.module';
     TelegramModule,
     ReferralModule,
     CacheModule,
+    CouponModule,
   ],
   providers: [
-    // core
     BotService,
     AdminStateManager,
     TelegramSender,
     MessageHelper,
-    // handlers
     CallbackHandler,
     UserHandler,
     OrderHandler,
     PlanHandler,
     ConfigHandler,
     DiscountHandler,
+    CouponHandler,
     SubHandler,
     ServiceHandler,
     BroadcastHandler,

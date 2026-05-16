@@ -1,4 +1,4 @@
-import { IsInt, IsPositive, IsString, IsNotEmpty } from 'class-validator';
+import { IsInt, IsPositive, IsString, IsNotEmpty, IsOptional } from 'class-validator';
 
 export class CreateOrderDto {
   @IsInt()
@@ -16,4 +16,8 @@ export class CreateOrderDto {
   @IsString()
   @IsNotEmpty()
   paymentReceiptFileId: string;
+
+  @IsOptional()
+  @IsInt()
+  discountCodeId?: number | null;
 }

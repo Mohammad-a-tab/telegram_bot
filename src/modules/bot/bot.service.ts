@@ -7,6 +7,7 @@ import { OrderHandler } from './handlers/order.handler';
 import { PlanHandler } from './handlers/plan.handler';
 import { ConfigHandler } from './handlers/config.handler';
 import { DiscountHandler } from './handlers/discount.handler';
+import { CouponHandler } from './handlers/coupon.handler';
 import { SubHandler } from './handlers/sub.handler';
 import { StockCheckerService } from '../stock/services';
 import { ReferralService } from '../referral/services/referral.service';
@@ -28,6 +29,7 @@ export class BotService {
     private readonly planHandler: PlanHandler,
     private readonly configHandler: ConfigHandler,
     private readonly discountHandler: DiscountHandler,
+    private readonly couponHandler: CouponHandler,
     private readonly subHandler: SubHandler,
     private readonly stockChecker: StockCheckerService,
     private readonly referralService: ReferralService,
@@ -141,6 +143,12 @@ export class BotService {
     switch (state.action) {
       case 'set_discount_price':
         return this.discountHandler.setDiscountPrice(this.bot, chatId, userId, text);
+
+      case 'waiting_for_coupon':
+        return this.couponHandler.validateCoupon(this.bot, chatId, userId, text);
+
+      case 'coupon_create':
+        return this.couponHandler.processCreate(this.bot, chatId, userId, text);
 
       case 'add_plan':
         return this.planHandler.processAddPlan(this.bot, chatId, userId, text);

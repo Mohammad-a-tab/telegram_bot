@@ -9,6 +9,7 @@ import { TelegramSender } from '../utils/telegram-sender';
 import { OrderStatus } from '../../order/entities/order.entity';
 import { ordersManagementKeyboard } from '../keyboards/admin.keyboard';
 import { PendingOrderCheckerService } from '../../order/services';
+import { CouponService } from '../../coupon/services/coupon.service';
 
 @Injectable()
 export class OrderHandler {
@@ -23,6 +24,7 @@ export class OrderHandler {
     private readonly stateManager: AdminStateManager,
     private readonly sender: TelegramSender,
     private readonly pendingChecker: PendingOrderCheckerService,
+    private readonly couponService: CouponService,
   ) {}
 
   async handleReceipt(bot: any, msg: any): Promise<void> {
@@ -52,13 +54,26 @@ export class OrderHandler {
       return;
     }
 
+    // Apply coupon discount if present in state
+    const couponData = state.data as { couponId?: number; couponPercent?: number } | undefined;
+    const basePrice = this.planService.getEffectivePrice(plan);
+    const finalAmount = couponData?.couponPercent
+      ? this.couponService.applyDiscount(basePrice, couponData.couponPercent)
+      : basePrice;
+
     try {
       const order = await this.orderService.createOrder({
         userId,
         planId: state.planId,
-        amount: this.planService.getEffectivePrice(plan),
+        amount: finalAmount,
         paymentReceiptFileId: photo.file_id,
+        discountCodeId: couponData?.couponId ?? null,
       });
+
+      // Mark coupon as used after order is created
+      if (couponData?.couponId) {
+        await this.couponService.markUsed(couponData.couponId).catch(() => {});
+      }
 
       const adminGroupId = process.env.ADMIN_GROUP_ID;
       const username = msg.from.username
@@ -98,6 +113,48 @@ export class OrderHandler {
       this.logger.error(`createOrder failed: ${error.message}`);
       await this.sender.send(bot, chatId, '❌ خطا در ثبت سفارش. لطفاً دوباره تلاش کنید.');
     }
+  }
+
+  async showPaymentInfo(bot: any, chatId: number, userId: number, planId: number, couponPercent: number | null): Promise<void> {
+    const plan = await this.planService.findById(planId);
+    if (!plan) { await this.sender.send(bot, chatId, '❌ پلن یافت نشد.'); return; }
+
+    const originalPrice = this.planService.getEffectivePrice(plan);
+    const finalPrice = couponPercent ? Math.round(originalPrice * (1 - couponPercent / 100)) : originalPrice;
+    const fmt = (p: number) => (p * 1000).toLocaleString('en-US');
+
+    const discountLine = couponPercent
+      ? `🏷️ تخفیف (${couponPercent}%): -${fmt(originalPrice - finalPrice)} تومان\n`
+      : '';
+
+    const message =
+      `💳 اطلاعات پرداخت\n\n` +
+      `📦 پلن: ${plan.name}\n` +
+      `💰 قیمت اصلی: ${fmt(originalPrice)} تومان\n` +
+      discountLine +
+      `✅ مبلغ نهایی: <b>${fmt(finalPrice)} تومان</b>\n\n` +
+      `💳 شماره کارت:\n${process.env.CARD_NUMBER ?? '**********'}\n\n` +
+      `👤 صاحب کارت:\n${process.env.CARD_HOLDER ?? 'نرگس کارگران'}\n\n` +
+      `🖼 پس از پرداخت، تصویر رسید را ارسال کنید.`;
+
+    // preserve any coupon data already in state
+    const existing = this.stateManager.get(userId);
+    const sent = await this.sender.send(bot, chatId, message, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '📤 ارسال رسید', callback_data: `send_receipt_${planId}` }],
+          [{ text: '🔙 بازگشت به پلن‌ها', callback_data: 'buy' }],
+        ],
+      },
+    });
+
+    this.stateManager.set(userId, {
+      action: 'waiting_for_receipt',
+      planId,
+      messageId: sent?.message_id,
+      data: existing?.data ?? {},
+    });
   }
 
   async waitForReceipt(bot: any, chatId: number, userId: number, planId: number): Promise<void> {
