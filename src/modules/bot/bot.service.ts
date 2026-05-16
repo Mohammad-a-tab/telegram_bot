@@ -71,7 +71,7 @@ export class BotService {
         const existingUser = await this.userService.findById(m.from.id);
         if (!existingUser) {
           const key = this.referralService.getPendingKey(m.from.id);
-          this.cacheService.set(key, { refCode }, 60 * 60).catch(() => {});
+          this.cacheService.set(key, { refCode }, 60 * 60 * 24).catch(() => {});
         }
       }
       this.userHandler.handleStart(b, m.chat.id, m.from.id, m.from.first_name, m.from.last_name);
